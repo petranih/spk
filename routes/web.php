@@ -1,5 +1,5 @@
 <?php
-// routes/web.php - Fixed version
+// routes/web.php - Updated version
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\MultiAuthController;
@@ -42,6 +42,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         'criteria' => 'criterion',
         'subcriteria' => 'subcriterion'
     ]);
+    
+    // Alternative route for subcriteria index without criteria parameter (for selection)
+    Route::get('/subcriteria', [SubCriteriaController::class, 'index'])->name('subcriteria.index');
     
     // Sub-subcriteria management (nested resource) 
     Route::resource('subcriteria.subsubcriteria', SubSubCriteriaController::class)->parameters([

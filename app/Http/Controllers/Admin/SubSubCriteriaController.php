@@ -9,18 +9,18 @@ use App\Models\SubSubCriteria;
 
 class SubSubCriteriaController extends Controller
 {
-    public function index(SubCriteria $subCriteria)
+    public function index(SubCriteria $subcriterion)
     {
-        $subSubCriterias = $subCriteria->subSubCriterias()->orderBy('order')->get();
-        return view('admin.subsubcriteria.index', compact('subCriteria', 'subSubCriterias'));
+        $subSubCriterias = $subcriterion->subSubCriterias()->orderBy('order')->get();
+        return view('admin.subsubcriteria.index', compact('subcriterion', 'subSubCriterias'));
     }
 
-    public function create(SubCriteria $subCriteria)
+    public function create(SubCriteria $subcriterion)
     {
-        return view('admin.subsubcriteria.create', compact('subCriteria'));
+        return view('admin.subsubcriteria.create', compact('subcriterion'));
     }
 
-    public function store(Request $request, SubCriteria $subCriteria)
+    public function store(Request $request, SubCriteria $subcriterion)
     {
         $request->validate([
             'name' => 'required|string|max:255',
@@ -30,42 +30,47 @@ class SubSubCriteriaController extends Controller
             'score' => 'required|numeric|min:0|max:1',
         ]);
 
-        $subCriteria->subSubCriterias()->create($request->all());
+        $subcriterion->subSubCriterias()->create($request->all());
 
-        return redirect()->route('admin.subsubcriteria.index', $subCriteria->id)
+        return redirect()->route('admin.subcriteria.subsubcriteria.index', $subcriterion->id)
             ->with('success', 'Sub sub kriteria berhasil ditambahkan');
     }
 
-    public function edit(SubCriteria $subCriteria, SubSubCriteria $subSubCriteria)
+    public function show(SubCriteria $subcriterion, SubSubCriteria $subsubcriterion)
     {
-        return view('admin.subsubcriteria.edit', compact('subCriteria', 'subSubCriteria'));
+        return view('admin.subsubcriteria.show', compact('subcriterion', 'subsubcriterion'));
     }
 
-    public function update(Request $request, SubCriteria $subCriteria, SubSubCriteria $subSubCriteria)
+    public function edit(SubCriteria $subcriterion, SubSubCriteria $subsubcriterion)
+    {
+        return view('admin.subsubcriteria.edit', compact('subcriterion', 'subsubcriterion'));
+    }
+
+    public function update(Request $request, SubCriteria $subcriterion, SubSubCriteria $subsubcriterion)
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'code' => 'required|string|max:50|unique:sub_sub_criterias,code,' . $subSubCriteria->id,
+            'code' => 'required|string|max:50|unique:sub_sub_criterias,code,' . $subsubcriterion->id,
             'description' => 'nullable|string',
             'order' => 'required|integer',
             'score' => 'required|numeric|min:0|max:1',
             'is_active' => 'boolean',
         ]);
 
-        $subSubCriteria->update($request->all());
+        $subsubcriterion->update($request->all());
 
-        return redirect()->route('admin.subsubcriteria.index', $subCriteria->id)
+        return redirect()->route('admin.subcriteria.subsubcriteria.index', $subcriterion->id)
             ->with('success', 'Sub sub kriteria berhasil diperbarui');
     }
 
-    public function destroy(SubCriteria $subCriteria, SubSubCriteria $subSubCriteria)
+    public function destroy(SubCriteria $subcriterion, SubSubCriteria $subsubcriterion)
     {
         try {
-            $subSubCriteria->delete();
-            return redirect()->route('admin.subsubcriteria.index', $subCriteria->id)
+            $subsubcriterion->delete();
+            return redirect()->route('admin.subcriteria.subsubcriteria.index', $subcriterion->id)
                 ->with('success', 'Sub sub kriteria berhasil dihapus');
         } catch (\Exception $e) {
-            return redirect()->route('admin.subsubcriteria.index', $subCriteria->id)
+            return redirect()->route('admin.subcriteria.subsubcriteria.index', $subcriterion->id)
                 ->with('error', 'Sub sub kriteria tidak dapat dihapus karena masih digunakan');
         }
     }

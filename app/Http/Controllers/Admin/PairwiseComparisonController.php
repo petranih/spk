@@ -67,15 +67,15 @@ class PairwiseComparisonController extends Controller
             ->with('success', 'Perbandingan berpasangan berhasil disimpan dan bobot dihitung');
     }
 
-    public function subCriteria(Criteria $criteria)
+    public function subCriteria(Criteria $criterion)
     {
-        $subCriterias = $criteria->subCriterias()->active()->get();
-        $comparisons = $this->getExistingComparisons('subcriteria', $criteria->id);
+        $subCriterias = $criterion->subCriterias()->active()->get();
+        $comparisons = $this->getExistingComparisons('subcriteria', $criterion->id);
         
-        return view('admin.pairwise.subcriteria', compact('criteria', 'subCriterias', 'comparisons'));
+        return view('admin.pairwise.subcriteria', compact('criterion', 'subCriterias', 'comparisons'));
     }
 
-    public function storeSubCriteria(Request $request, Criteria $criteria)
+    public function storeSubCriteria(Request $request, Criteria $criterion)
     {
         $request->validate([
             'comparisons' => 'required|array',
@@ -89,7 +89,7 @@ class PairwiseComparisonController extends Controller
                 // Store A vs B
                 PairwiseComparison::updateOrCreate([
                     'comparison_type' => 'subcriteria',
-                    'parent_id' => $criteria->id,
+                    'parent_id' => $criterion->id,
                     'item_a_id' => $comparison['item_a_id'],
                     'item_b_id' => $comparison['item_b_id'],
                 ], [
@@ -99,7 +99,7 @@ class PairwiseComparisonController extends Controller
                 // Store reciprocal B vs A
                 PairwiseComparison::updateOrCreate([
                     'comparison_type' => 'subcriteria',
-                    'parent_id' => $criteria->id,
+                    'parent_id' => $criterion->id,
                     'item_a_id' => $comparison['item_b_id'],
                     'item_b_id' => $comparison['item_a_id'],
                 ], [
@@ -109,21 +109,21 @@ class PairwiseComparisonController extends Controller
         }
 
         // Calculate weights
-        $this->ahpController->calculateSubCriteriaWeights($criteria->id);
+        $this->ahpController->calculateSubCriteriaWeights($criterion->id);
 
-        return redirect()->route('admin.pairwise.subcriteria', $criteria->id)
+        return redirect()->route('admin.pairwise.subcriteria', $criterion->id)
             ->with('success', 'Perbandingan berpasangan berhasil disimpan dan bobot dihitung');
     }
 
-    public function subSubCriteria(SubCriteria $subCriteria)
+    public function subSubCriteria(SubCriteria $subcriterion)
     {
-        $subSubCriterias = $subCriteria->subSubCriterias()->active()->get();
-        $comparisons = $this->getExistingComparisons('subsubcriteria', $subCriteria->id);
+        $subSubCriterias = $subcriterion->subSubCriterias()->active()->get();
+        $comparisons = $this->getExistingComparisons('subsubcriteria', $subcriterion->id);
         
-        return view('admin.pairwise.subsubcriteria', compact('subCriteria', 'subSubCriterias', 'comparisons'));
+        return view('admin.pairwise.subsubcriteria', compact('subcriterion', 'subSubCriterias', 'comparisons'));
     }
 
-    public function storeSubSubCriteria(Request $request, SubCriteria $subCriteria)
+    public function storeSubSubCriteria(Request $request, SubCriteria $subcriterion)
     {
         $request->validate([
             'comparisons' => 'required|array',
@@ -137,7 +137,7 @@ class PairwiseComparisonController extends Controller
                 // Store A vs B
                 PairwiseComparison::updateOrCreate([
                     'comparison_type' => 'subsubcriteria',
-                    'parent_id' => $subCriteria->id,
+                    'parent_id' => $subcriterion->id,
                     'item_a_id' => $comparison['item_a_id'],
                     'item_b_id' => $comparison['item_b_id'],
                 ], [
@@ -147,7 +147,7 @@ class PairwiseComparisonController extends Controller
                 // Store reciprocal B vs A
                 PairwiseComparison::updateOrCreate([
                     'comparison_type' => 'subsubcriteria',
-                    'parent_id' => $subCriteria->id,
+                    'parent_id' => $subcriterion->id,
                     'item_a_id' => $comparison['item_b_id'],
                     'item_b_id' => $comparison['item_a_id'],
                 ], [
@@ -157,9 +157,9 @@ class PairwiseComparisonController extends Controller
         }
 
         // Calculate weights
-        $this->ahpController->calculateSubSubCriteriaWeights($subCriteria->id);
+        $this->ahpController->calculateSubSubCriteriaWeights($subcriterion->id);
 
-        return redirect()->route('admin.pairwise.subsubcriteria', $subCriteria->id)
+        return redirect()->route('admin.pairwise.subsubcriteria', $subcriterion->id)
             ->with('success', 'Perbandingan berpasangan berhasil disimpan dan bobot dihitung');
     }
 

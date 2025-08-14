@@ -77,6 +77,29 @@
     </div>
     
     <div class="col-md-4">
+        <!-- Navigation Card -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Ganti Kriteria</h6>
+            </div>
+            <div class="card-body">
+                <p class="small mb-3">Edit sub kriteria untuk kriteria lain:</p>
+                @php
+                    $allCriterias = \App\Models\Criteria::orderBy('order')->get();
+                @endphp
+                <div class="d-grid gap-2">
+                    @foreach($allCriterias as $crit)
+                        @if($crit->id != $criteria->id)
+                            <a href="{{ route('admin.criteria.subcriteria.index', $crit->id) }}" 
+                               class="btn btn-outline-primary btn-sm text-start">
+                                <small><strong>{{ $crit->code }}</strong> - {{ Str::limit($crit->name, 20) }}</small>
+                            </a>
+                        @endif
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        
         <div class="card">
             <div class="card-header">
                 <h6 class="mb-0">Informasi Sub Kriteria</h6>

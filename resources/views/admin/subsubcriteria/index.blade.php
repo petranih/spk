@@ -1,22 +1,21 @@
 @extends('layouts.app')
 
 @section('title', 'Kelola Sub Sub Kriteria')
-@section('page-title', 'Sub Sub Kriteria - ' . $subCriteria->name)
+@section('page-title', 'Sub Sub Kriteria - ' . $subcriterion->name)
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h4>Sub Sub Kriteria: {{ $subCriteria->name }}</h4>
-        <small class="text-muted">{{ $subCriteria->criteria->name }} → {{ $subCriteria->code }}</small>
+        <h4>Sub Sub Kriteria: {{ $subcriterion->name }}</h4>
+        <small class="text-muted">{{ $subcriterion->criteria->name }} → {{ $subcriterion->code }}</small>
     </div>
     <div>
-        <a href="{{ route('admin.criteria.subcriteria.index', $subCriteria->criteria_id) }}" class="btn btn-secondary me-2">
+        <a href="{{ route('admin.criteria.subcriteria.index', $subcriterion->criteria_id) }}" class="btn btn-secondary me-2">
             <i class="fas fa-arrow-left me-2"></i>Kembali ke Sub Kriteria
         </a>
-<a href="{{ route('admin.criteria.subcriteria.create', ['criteria' => $criteria->id]) }}" class="btn btn-primary">
-    Tambah Sub Kriteria
-</a>
-
+        <a href="{{ route('admin.subcriteria.subsubcriteria.create', $subcriterion->id) }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Tambah Sub Sub Kriteria
+        </a>
     </div>
 </div>
 
@@ -57,11 +56,11 @@
                             </td>
                             <td>
                                 <div class="btn-group" role="group">
-                                    <a href="{{ route('admin.subcriteria.subsubcriteria.edit', [$subCriteria->id, $subSubCriteria->id]) }}" 
+                                    <a href="{{ route('admin.subcriteria.subsubcriteria.edit', [$subcriterion->id, $subSubCriteria->id]) }}" 
                                        class="btn btn-sm btn-outline-warning">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <form action="{{ route('admin.subcriteria.subsubcriteria.destroy', [$subCriteria->id, $subSubCriteria->id]) }}" 
+                                    <form action="{{ route('admin.subcriteria.subsubcriteria.destroy', [$subcriterion->id, $subSubCriteria->id]) }}" 
                                           method="POST" class="d-inline"
                                           onsubmit="return confirm('Apakah Anda yakin ingin menghapus sub sub kriteria ini?')">
                                         @csrf
@@ -80,7 +79,7 @@
 
             @if($subSubCriterias->count() >= 2)
                 <div class="mt-4">
-                    <a href="{{ route('admin.pairwise.subsubcriteria', $subCriteria->id) }}" class="btn btn-success">
+                    <a href="{{ route('admin.pairwise.subsubcriteria', $subcriterion->id) }}" class="btn btn-success">
                         <i class="fas fa-balance-scale me-2"></i>
                         Perbandingan Berpasangan Sub Sub Kriteria
                     </a>
@@ -89,8 +88,8 @@
         @else
             <div class="text-center py-5">
                 <i class="fas fa-list fa-3x text-muted mb-3"></i>
-                <p class="text-muted">Belum ada sub sub kriteria yang ditambahkan untuk <strong>{{ $subCriteria->name }}</strong></p>
-                <a href="{{ route('admin.subcriteria.subsubcriteria.create', $subCriteria->id) }}" class="btn btn-primary">
+                <p class="text-muted">Belum ada sub sub kriteria yang ditambahkan untuk <strong>{{ $subcriterion->name }}</strong></p>
+                <a href="{{ route('admin.subcriteria.subsubcriteria.create', $subcriterion->id) }}" class="btn btn-primary">
                     <i class="fas fa-plus me-2"></i>Tambah Sub Sub Kriteria Pertama
                 </a>
             </div>
@@ -106,18 +105,9 @@
         <div class="card-body">
             <p class="text-muted">Berikut adalah opsi yang akan muncul di form aplikasi siswa:</p>
             <div class="form-group">
-                <label class="form-label"><strong>{{ $subCriteria->name }}</strong></label>
-@if($subSubCriterias->count() > 0)
-    <div class="card mt-4">
-        <div class="card-header">
-            <h6 class="mb-0">Preview Opsi untuk Siswa</h6>
-        </div>
-        <div class="card-body">
-            <p class="text-muted">Berikut adalah opsi yang akan muncul di form aplikasi siswa:</p>
-            <div class="form-group">
-                <label class="form-label"><strong>{{ $subCriteria->name }}</strong></label>
+                <label class="form-label"><strong>{{ $subcriterion->name }}</strong></label>
                 <select class="form-select" disabled>
-                    <option value="">-- Pilih {{ $subCriteria->name }} --</option>
+                    <option value="">-- Pilih {{ $subcriterion->name }} --</option>
                     @foreach($subSubCriterias->sortBy('order') as $subSubCriteria)
                         <option value="{{ $subSubCriteria->id }}">
                             {{ $subSubCriteria->name }} (Skor: {{ number_format($subSubCriteria->score, 3) }})

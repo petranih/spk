@@ -10,19 +10,29 @@ use App\Models\SubCriteria;
 
 class SubCriteriaController extends Controller
 {
-    public function index(Criteria $criterion)
-{
-    
-    $subCriterias = $criterion->subCriterias()->orderBy('order')->get();
-    return view('admin.subcriteria.index', compact('criterion', 'subCriterias'));
-}
-
-    public function create(Criteria $criteria)
+    public function index(Criteria $criterion = null)
     {
-        return view('admin.subcriteria.create', compact('criteria'));
+        $criterias = Criteria::orderBy('order')->get();
+        
+        if (!$criterion && $criterias->isNotEmpty()) {
+            $criterion = $criterias->first();
+        }
+        
+        if ($criterion) {
+            $subCriterias = $criterion->subCriterias()->orderBy('order')->get();
+        } else {
+            $subCriterias = collect();
+        }
+        
+        return view('admin.subcriteria.index', compact('criterion', 'subCriterias', 'criterias'));
     }
 
-    public function store(Request $request, Criteria $criteria)
+    public function create(Criteria $criterion)
+    {
+        return view('admin.subcriteria.create', compact('criterion'));
+    }
+
+    public function store(Request $request, Criteria $criterion)
     {
         $request->validate([
             'name' => 'required|string|max:255',
@@ -31,9 +41,10 @@ class SubCriteriaController extends Controller
             'order' => 'required|integer',
         ]);
 
-        $criteria->subCriterias()->create($request->all());
-return redirect()->route('admin.admin.criteria.subcriteria.index', $criteria->id)
-        ->with('success', 'Sub kriteria berhasil ditambahkan');
+        $criterion->subCriterias()->create($request->all());
+        
+        return redirect()->route('admin.criteria.subcriteria.index', $criterion->id)
+            ->with('success', 'Sub kriteria berhasil ditambahkan');
     }
 
     public function show(Criteria $criteria, SubCriteria $subCriteria)
@@ -58,19 +69,20 @@ return redirect()->route('admin.admin.criteria.subcriteria.index', $criteria->id
         ]);
 
         $subCriteria->update($request->all());
-return redirect()->route('admin.admin.criteria.subcriteria.index', $criteria->id)
-        ->with('success', 'Sub kriteria berhasil diperbarui');
+        
+        return redirect()->route('admin.criteria.subcriteria.index', $criteria->id)
+            ->with('success', 'Sub kriteria berhasil diperbarui');
     }
 
     public function destroy(Criteria $criteria, SubCriteria $subCriteria)
-{
-    try {
-        $subCriteria->delete();
-        return redirect()->route('admin.admin.criteria.subcriteria.index', $criteria->id)
-            ->with('success', 'Sub kriteria berhasil dihapus');
-    } catch (\Exception $e) {
-        return redirect()->route('admin.admin.criteria.subcriteria.index', $criteria->id)
-            ->with('error', 'Sub kriteria tidak dapat dihapus karena masih digunakan');
+    {
+        try {
+            $subCriteria->delete();
+            return redirect()->route('admin.criteria.subcriteria.index', $criteria->id)
+                ->with('success', 'Sub kriteria berhasil dihapus');
+        } catch (\Exception $e) {
+            return redirect()->route('admin.criteria.subcriteria.index', $criteria->id)
+                ->with('error', 'Sub kriteria tidak dapat dihapus karena masih digunakan');
+        }
     }
-}
 }

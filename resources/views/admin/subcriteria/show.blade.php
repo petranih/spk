@@ -1,116 +1,125 @@
 @extends('layouts.app')
 
-@section('title', 'Detail Sub Kriteria')
-@section('page-title', 'Detail Sub Kriteria')
+@section('title', 'Kelola Sub Sub Kriteria')
+@section('page-title', 'Sub Sub Kriteria - ' . $subcriterion->name)
 
 @section('content')
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">{{ $subCriteria->name }}</h5>
-                <small class="text-muted">{{ $criteria->name }} → {{ $subCriteria->code }}</small>
-            </div>
-            <div class="card-body">
-                <table class="table">
-                    <tr>
-                        <th width="200">Nama Sub Kriteria</th>
-                        <td>{{ $subCriteria->name }}</td>
-                    </tr>
-                    <tr>
-                        <th>Kode</th>
-                        <td><code>{{ $subCriteria->code }}</code></td>
-                    </tr>
-                    <tr>
-                        <th>Deskripsi</th>
-                        <td>{{ $subCriteria->description ?: '-' }}</td>
-                    </tr>
-                    <tr>
-                        <th>Bobot</th>
-                        <td>{{ number_format($subCriteria->weight, 6) }}</td>
-                    </tr>
-                    <tr>
-                        <th>Urutan</th>
-                        <td>{{ $subCriteria->order }}</td>
-                    </tr>
-                    <tr>
-                        <th>Status</th>
-                        <td>
-                            @if($subCriteria->is_active)
-                                <span class="badge bg-success">Aktif</span>
-                            @else
-                                <span class="badge bg-secondary">Tidak Aktif</span>
-                            @endif
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>Sub Sub Kriteria</th>
-                        <td>{{ $subCriteria->subSubCriterias->count() }} item</td>
-                    </tr>
-                </table>
-                
-                <div class="d-flex gap-2">
-                    <a href="{{ route('admin.criteria.subcriteria.edit', [$criteria->id, $subCriteria->id]) }}" class="btn btn-warning">
-                        <i class="fas fa-edit me-2"></i>Edit
-                    </a>
-                    <a href="{{ route('admin.subcriteria.subsubcriteria.index', $subCriteria->id) }}" class="btn btn-info">
-                        <i class="fas fa-list me-2"></i>Kelola Sub Sub Kriteria
-                    </a>
-                </div>
-            </div>
-        </div>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4>Sub Sub Kriteria: {{ $subcriterion->name }}</h4>
+        <small class="text-muted">{{ $subcriterion->criteria->name }} → {{ $subcriterion->code }}</small>
     </div>
-    
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0">Sub Sub Kriteria</h6>
-            </div>
-            <div class="card-body">
-                @if($subCriteria->subSubCriterias->count() > 0)
-                    <div class="list-group">
-                        @foreach($subCriteria->subSubCriterias as $subSubCriteria)
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>{{ $subSubCriteria->name }}</strong>
-                                <br><small class="text-muted">{{ $subSubCriteria->code }}</small>
-                            </div>
-                            <span class="badge bg-primary">{{ number_format($subSubCriteria->score, 3) }}</span>
-                        </div>
-                        @endforeach
-                    </div>
-                    
-                    <div class="mt-3 d-grid">
-                        <a href="{{ route('admin.subcriteria.subsubcriteria.index', $subCriteria->id) }}" class="btn btn-info">
-                            <i class="fas fa-cogs me-2"></i>Kelola Semua
-                        </a>
-                    </div>
-                @else
-                    <p class="text-muted text-center">Belum ada sub sub kriteria</p>
-                    <div class="d-grid">
-                        <a href="{{ route('admin.subcriteria.subsubcriteria.create', $subCriteria->id) }}" class="btn btn-primary">
-                            <i class="fas fa-plus me-2"></i>Tambah Sub Sub Kriteria
-                        </a>
-                    </div>
-                @endif
-            </div>
-        </div>
-        
-        <div class="card mt-3">
-            <div class="card-header">
-                <h6 class="mb-0">Navigasi</h6>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{{ route('admin.criteria.index') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-list me-2"></i>Semua Kriteria
-                    </a>
-                    <a href="{{ route('admin.criteria.subcriteria.index', $criteria->id) }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>Kembali ke Sub Kriteria
-                    </a>
-                </div>
-            </div>
-        </div>
+    <div>
+        <a href="{{ route('admin.criteria.subcriteria.index', $subcriterion->criteria_id) }}" class="btn btn-secondary me-2">
+            <i class="fas fa-arrow-left me-2"></i>Kembali ke Sub Kriteria
+        </a>
+        <a href="{{ route('admin.subcriteria.subsubcriteria.create', $subcriterion->id) }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Tambah Sub Sub Kriteria
+        </a>
     </div>
 </div>
+
+<div class="card">
+    <div class="card-body">
+        @if($subSubCriterias->count() > 0)
+            <div class="table-responsive">
+                <table class="table table-datatable">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Kode</th>
+                            <th>Nama Sub Sub Kriteria</th>
+                            <th>Bobot</th>
+                            <th>Skor</th>
+                            <th>Urutan</th>
+                            <th>Status</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($subSubCriterias as $index => $subSubCriteria)
+                        <tr>
+                            <td>{{ $index + 1 }}</td>
+                            <td><code>{{ $subSubCriteria->code }}</code></td>
+                            <td>{{ $subSubCriteria->name }}</td>
+                            <td>{{ number_format($subSubCriteria->weight, 6) }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ number_format($subSubCriteria->score, 3) }}</span>
+                            </td>
+                            <td>{{ $subSubCriteria->order }}</td>
+                            <td>
+                                @if($subSubCriteria->is_active)
+                                    <span class="badge bg-success">Aktif</span>
+                                @else
+                                    <span class="badge bg-secondary">Tidak Aktif</span>
+                                @endif
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ route('admin.subcriteria.subsubcriteria.edit', [$subcriterion->id, $subSubCriteria->id]) }}" 
+                                       class="btn btn-sm btn-outline-warning">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form action="{{ route('admin.subcriteria.subsubcriteria.destroy', [$subcriterion->id, $subSubCriteria->id]) }}" 
+                                          method="POST" class="d-inline"
+                                          onsubmit="return confirm('Apakah Anda yakin ingin menghapus sub sub kriteria ini?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            @if($subSubCriterias->count() >= 2)
+                <div class="mt-4">
+                    <a href="{{ route('admin.pairwise.subsubcriteria', $subcriterion->id) }}" class="btn btn-success">
+                        <i class="fas fa-balance-scale me-2"></i>
+                        Perbandingan Berpasangan Sub Sub Kriteria
+                    </a>
+                </div>
+            @endif
+        @else
+            <div class="text-center py-5">
+                <i class="fas fa-list fa-3x text-muted mb-3"></i>
+                <p class="text-muted">Belum ada sub sub kriteria yang ditambahkan untuk <strong>{{ $subcriterion->name }}</strong></p>
+                <a href="{{ route('admin.subcriteria.subsubcriteria.create', $subcriterion->id) }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Tambah Sub Sub Kriteria Pertama
+                </a>
+            </div>
+        @endif
+    </div>
+</div>
+
+@if($subSubCriterias->count() > 0)
+    <div class="card mt-4">
+        <div class="card-header">
+            <h6 class="mb-0">Preview Opsi untuk Siswa</h6>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Berikut adalah opsi yang akan muncul di form aplikasi siswa:</p>
+            <div class="form-group">
+                <label class="form-label"><strong>{{ $subcriterion->name }}</strong></label>
+                <select class="form-select" disabled>
+                    <option value="">-- Pilih {{ $subcriterion->name }} --</option>
+                    @foreach($subSubCriterias->sortBy('order') as $subSubCriteria)
+                        <option value="{{ $subSubCriteria->id }}">
+                            {{ $subSubCriteria->name }} (Skor: {{ number_format($subSubCriteria->score, 3) }})
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <small class="text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                Siswa akan memilih salah satu opsi ini, dan sistem akan otomatis menggunakan skor yang sudah ditetapkan.
+            </small>
+        </div>
+    </div>
+@endif
 @endsection

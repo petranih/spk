@@ -9,10 +9,10 @@
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">Form Tambah Sub Kriteria</h5>
-                <small class="text-muted">Kriteria: {{ $criteria->name }} ({{ $criteria->code }})</small>
+                <small class="text-muted">Kriteria: {{ $criterion->name }} ({{ $criterion->code }})</small>
             </div>
             <div class="card-body">
-                <form action="{{ route('admin.criteria.subcriteria.store', $criteria->id) }}" method="POST">
+                <form action="{{ route('admin.criteria.subcriteria.create', $criterion->id) }}" method="POST">
                     @csrf
                     
                     <div class="mb-3">
@@ -55,7 +55,7 @@
                     </div>
                     
                     <div class="d-flex justify-content-between">
-                        <a href="{{ route('admin.criteria.subcriteria.index', $criteria->id) }}" class="btn btn-secondary">
+                        <a href="{{ route('admin.criteria.subcriteria.index', $criterion->id) }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-2"></i>Kembali
                         </a>
                         <button type="submit" class="btn btn-primary">
@@ -68,6 +68,29 @@
     </div>
     
     <div class="col-md-4">
+        <!-- Navigation Card -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Ganti Kriteria</h6>
+            </div>
+            <div class="card-body">
+                <p class="small mb-3">Ingin menambah sub kriteria untuk kriteria lain?</p>
+                @php
+                    $allCriterias = \App\Models\Criteria::orderBy('order')->get();
+                @endphp
+                <div class="d-grid gap-2">
+                    @foreach($allCriterias as $crit)
+                        @if($crit->id != $criterion->id)
+                            <a href="{{ route('admin.criteria.subcriteria.create', $crit->id) }}" 
+                               class="btn btn-outline-primary btn-sm text-start">
+                                <small><strong>{{ $crit->code }}</strong> - {{ Str::limit($crit->name, 20) }}</small>
+                            </a>
+                        @endif
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        
         <div class="card">
             <div class="card-header">
                 <h6 class="mb-0">Informasi Kriteria</h6>
@@ -76,19 +99,19 @@
                 <table class="table table-sm">
                     <tr>
                         <td>Nama</td>
-                        <td>: {{ $criteria->name }}</td>
+                        <td>: {{ $criterion->name }}</td>
                     </tr>
                     <tr>
                         <td>Kode</td>
-                        <td>: {{ $criteria->code }}</td>
+                        <td>: {{ $criterion->code }}</td>
                     </tr>
                     <tr>
                         <td>Bobot</td>
-                        <td>: {{ number_format($criteria->weight, 6) }}</td>
+                        <td>: {{ number_format($criterion->weight, 6) }}</td>
                     </tr>
                     <tr>
                         <td>Sub Kriteria</td>
-                        <td>: {{ $criteria->subCriterias->count() }}</td>
+                        <td>: {{ $criterion->subCriterias->count() }}</td>
                     </tr>
                 </table>
             </div>
@@ -99,8 +122,8 @@
                 <h6 class="mb-0">Panduan</h6>
             </div>
             <div class="card-body">
-                <h6>Contoh Sub Kriteria untuk {{ $criteria->name }}:</h6>
-                @if($criteria->code == 'C1')
+                <h6>Contoh Sub Kriteria untuk {{ $criterion->name }}:</h6>
+                @if($criterion->code == 'C1')
                     <ul class="small">
                         <li><strong>Pekerjaan Ayah</strong> - C1_1</li>
                         <li><strong>Pekerjaan Ibu</strong> - C1_2</li>
@@ -110,7 +133,7 @@
                         <li><strong>Kepemilikan Hutang</strong> - C1_6</li>
                         <li><strong>Pendidikan Orang Tua</strong> - C1_7</li>
                     </ul>
-                @elseif($criteria->code == 'C2')
+                @elseif($criterion->code == 'C2')
                     <ul class="small">
                         <li><strong>Dinding</strong> - C2_1</li>
                         <li><strong>Lantai</strong> - C2_2</li>
