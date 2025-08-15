@@ -1,27 +1,24 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Sub Sub Kriteria')
-@section('page-title', 'Edit Sub Sub Kriteria')
+@section('title', 'Tambah Sub Sub Kriteria')
+@section('page-title', 'Tambah Sub Sub Kriteria')
 
 @section('content')
 <div class="row">
     <div class="col-md-8">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Form Edit Sub Sub Kriteria</h5>
-                <small class="text-muted">
-                    {{ $subcriterion->criteria->name }} → {{ $subcriterion->name }} → {{ $subsubcriterion->name }}
-                </small>
+                <h5 class="mb-0">Form Tambah Sub Sub Kriteria</h5>
+                <small class="text-muted">{{ $subcriterion->criteria->name }} → {{ $subcriterion->name }} ({{ $subcriterion->code }})</small>
             </div>
             <div class="card-body">
-                <form action="{{ route('admin.subcriteria.subsubcriteria.update', [$subcriterion->id, $subsubcriterion->id]) }}" method="POST">
+                <form action="{{ route('admin.subcriteria.subsubcriteria.store', $subcriterion->id) }}" method="POST">
                     @csrf
-                    @method('PUT')
                     
                     <div class="mb-3">
                         <label for="name" class="form-label">Nama Sub Sub Kriteria</label>
                         <input type="text" class="form-control @error('name') is-invalid @enderror" 
-                               id="name" name="name" value="{{ old('name', $subsubcriterion->name) }}" required>
+                               id="name" name="name" value="{{ old('name') }}" required>
                         @error('name')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
@@ -30,16 +27,18 @@
                     <div class="mb-3">
                         <label for="code" class="form-label">Kode Sub Sub Kriteria</label>
                         <input type="text" class="form-control @error('code') is-invalid @enderror" 
-                               id="code" name="code" value="{{ old('code', $subsubcriterion->code) }}" required>
+                               id="code" name="code" value="{{ old('code') }}" required 
+                               placeholder="Contoh: {{ $subcriterion->code }}_1, {{ $subcriterion->code }}_2, dst">
                         @error('code')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
+                        <div class="form-text">Kode harus unik dan akan digunakan untuk identifikasi</div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="description" class="form-label">Deskripsi</label>
                         <textarea class="form-control @error('description') is-invalid @enderror" 
-                                  id="description" name="description" rows="3">{{ old('description', $subsubcriterion->description) }}</textarea>
+                                  id="description" name="description" rows="3">{{ old('description') }}</textarea>
                         @error('description')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
@@ -48,29 +47,24 @@
                     <div class="mb-3">
                         <label for="order" class="form-label">Urutan</label>
                         <input type="number" class="form-control @error('order') is-invalid @enderror" 
-                               id="order" name="order" value="{{ old('order', $subsubcriterion->order) }}" min="1" required>
+                               id="order" name="order" value="{{ old('order', 1) }}" min="1" required>
                         @error('order')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
+                        <div class="form-text">Urutan tampil sub sub kriteria (1 = pertama)</div>
                     </div>
                     
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="is_active" name="is_active" value="1"
-                                   {{ old('is_active', $subsubcriterion->is_active) ? 'checked' : '' }}>
-                            <label class="form-check-label" for="is_active">
-                                Aktif
-                            </label>
-                        </div>
-                        <div class="form-text">Sub sub kriteria tidak aktif tidak akan muncul sebagai opsi pilihan</div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Catatan:</strong> Skor dan bobot akan dihitung secara otomatis melalui perbandingan berpasangan setelah semua sub sub kriteria ditambahkan.
                     </div>
                     
                     <div class="d-flex justify-content-between">
-                        <a href="{{ route('admin.subcriteria.subsubcriteria.index', $subcriterion->id) }}" class="btn btn-secondary">
+                        <a href="{{ route('admin.subsubcriteria.index', $subcriterion->id) }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-2"></i>Kembali
                         </a>
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-2"></i>Update
+                            <i class="fas fa-save me-2"></i>Simpan
                         </button>
                     </div>
                 </form>
@@ -85,14 +79,14 @@
                 <h6 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Ganti Sub Kriteria</h6>
             </div>
             <div class="card-body">
-                <p class="small mb-3">Edit sub sub kriteria untuk sub kriteria lain:</p>
+                <p class="small mb-3">Ingin menambah sub sub kriteria untuk sub kriteria lain?</p>
                 @php
                     $allSubCriterias = \App\Models\SubCriteria::with('criteria')->orderBy('order')->get();
                 @endphp
                 <div class="d-grid gap-2">
                     @foreach($allSubCriterias as $subCrit)
                         @if($subCrit->id != $subcriterion->id)
-                            <a href="{{ route('admin.subcriteria.subsubcriteria.edit', [$subCrit->id, $subsubcriterion->id]) }}" 
+                            <a href="{{ route('admin.subcriteria.subsubcriteria.create', $subCrit->id) }}" 
                                class="btn btn-outline-primary btn-sm text-start">
                                 <small><strong>{{ $subCrit->code }}</strong> - {{ Str::limit($subCrit->name, 15) }}</small>
                                 <br><small class="text-muted">{{ $subCrit->criteria->name }}</small>
@@ -105,25 +99,25 @@
         
         <div class="card">
             <div class="card-header">
-                <h6 class="mb-0">Informasi Sub Sub Kriteria</h6>
+                <h6 class="mb-0">Informasi Sub Kriteria</h6>
             </div>
             <div class="card-body">
                 <table class="table table-sm">
                     <tr>
-                        <td>ID</td>
-                        <td>: {{ $subsubcriterion->id }}</td>
+                        <td>Nama</td>
+                        <td>: {{ $subcriterion->name }}</td>
                     </tr>
                     <tr>
-                        <td>Bobot Saat Ini</td>
-                        <td>: {{ number_format($subsubcriterion->weight, 6) }}</td>
+                        <td>Kode</td>
+                        <td>: {{ $subcriterion->code }}</td>
                     </tr>
                     <tr>
-                        <td>Dibuat</td>
-                        <td>: {{ $subsubcriterion->created_at->format('d/m/Y H:i') }}</td>
+                        <td>Kriteria</td>
+                        <td>: {{ $subcriterion->criteria->name }}</td>
                     </tr>
                     <tr>
-                        <td>Diperbarui</td>
-                        <td>: {{ $subsubcriterion->updated_at->format('d/m/Y H:i') }}</td>
+                        <td>Sub Sub Kriteria</td>
+                        <td>: {{ $subcriterion->subSubCriterias->count() }}</td>
                     </tr>
                 </table>
             </div>
@@ -131,47 +125,56 @@
         
         <div class="card mt-3">
             <div class="card-header">
-                <h6 class="mb-0">Referensi dari Jurnal</h6>
+                <h6 class="mb-0">Panduan</h6>
             </div>
             <div class="card-body">
-                <p class="small text-muted">Contoh opsi berdasarkan penelitian:</p>
-                
+                <h6>Contoh Sub Sub Kriteria untuk {{ $subcriterion->name }}:</h6>
                 @if(str_contains(strtolower($subcriterion->name), 'pekerjaan'))
-                    <table class="table table-sm">
-                        <tr><td>Petani</td></tr>
-                        <tr><td>Buruh</td></tr>
-                        <tr><td>PNS</td></tr>
-                        <tr><td>Wirausaha</td></tr>
-                        <tr><td>Tidak Bekerja</td></tr>
-                    </table>
+                    <ul class="small">
+                        <li><strong>PNS/ASN</strong> - {{ $subcriterion->code }}_1</li>
+                        <li><strong>Pegawai Swasta</strong> - {{ $subcriterion->code }}_2</li>
+                        <li><strong>Wirausaha</strong> - {{ $subcriterion->code }}_3</li>
+                        <li><strong>Petani/Nelayan</strong> - {{ $subcriterion->code }}_4</li>
+                        <li><strong>Buruh</strong> - {{ $subcriterion->code }}_5</li>
+                        <li><strong>Tidak Bekerja</strong> - {{ $subcriterion->code }}_6</li>
+                    </ul>
+                @elseif(str_contains(strtolower($subcriterion->name), 'penghasilan'))
+                    <ul class="small">
+                        <li><strong>> 5 Juta</strong> - {{ $subcriterion->code }}_1</li>
+                        <li><strong>3-5 Juta</strong> - {{ $subcriterion->code }}_2</li>
+                        <li><strong>1-3 Juta</strong> - {{ $subcriterion->code }}_3</li>
+                        <li><strong>< 1 Juta</strong> - {{ $subcriterion->code }}_4</li>
+                        <li><strong>Tidak Ada</strong> - {{ $subcriterion->code }}_5</li>
+                    </ul>
                 @elseif(str_contains(strtolower($subcriterion->name), 'hutang'))
-                    <table class="table table-sm">
-                        <tr><td>Tidak Punya Hutang</td></tr>
-                        <tr><td>Punya Sedikit Hutang</td></tr>
-                        <tr><td>Punya Banyak Hutang</td></tr>
-                    </table>
+                    <ul class="small">
+                        <li><strong>Tidak Ada Hutang</strong> - {{ $subcriterion->code }}_1</li>
+                        <li><strong>Hutang Sedikit</strong> - {{ $subcriterion->code }}_2</li>
+                        <li><strong>Hutang Banyak</strong> - {{ $subcriterion->code }}_3</li>
+                    </ul>
+                @elseif(str_contains(strtolower($subcriterion->name), 'dinding'))
+                    <ul class="small">
+                        <li><strong>Tembok</strong> - {{ $subcriterion->code }}_1</li>
+                        <li><strong>Semi Tembok</strong> - {{ $subcriterion->code }}_2</li>
+                        <li><strong>Papan</strong> - {{ $subcriterion->code }}_3</li>
+                        <li><strong>Bambu</strong> - {{ $subcriterion->code }}_4</li>
+                    </ul>
                 @else
-                    <p class="small">Gunakan perbandingan berpasangan untuk menentukan prioritas yang akurat.</p>
+                    <ul class="small">
+                        <li>Sesuaikan dengan karakteristik {{ $subcriterion->name }}</li>
+                        <li>Gunakan pola kode: {{ $subcriterion->code }}_1, {{ $subcriterion->code }}_2, dst</li>
+                    </ul>
                 @endif
-            </div>
-        </div>
-        
-        <div class="card mt-3">
-            <div class="card-header">
-                <h6 class="mb-0">Navigasi</h6>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{{ route('admin.criteria.index') }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-list me-2"></i>Semua Kriteria
-                    </a>
-                    <a href="{{ route('admin.subcriteria.index') }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-layer-group me-2"></i>Sub Kriteria
-                    </a>
-                    <a href="{{ route('admin.subcriteria.subsubcriteria.index', $subcriterion->id) }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-arrow-left me-2"></i>Kembali ke List
-                    </a>
-                </div>
+                
+                <hr>
+                
+                <h6>Tips:</h6>
+                <ul class="small">
+                    <li>Gunakan nama yang jelas dan mudah dipahami siswa</li>
+                    <li>Kode sebaiknya mengikuti pola sub kriteria induk</li>
+                    <li>Urutan menentukan tampilan di form aplikasi</li>
+                    <li>Skor akan dihitung otomatis melalui perbandingan berpasangan</li>
+                </ul>
             </div>
         </div>
     </div>

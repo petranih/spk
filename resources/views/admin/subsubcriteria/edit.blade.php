@@ -114,10 +114,6 @@
                         <td>: {{ $subsubcriterion->id }}</td>
                     </tr>
                     <tr>
-                        <td>Bobot Saat Ini</td>
-                        <td>: {{ number_format($subsubcriterion->weight, 6) }}</td>
-                    </tr>
-                    <tr>
                         <td>Dibuat</td>
                         <td>: {{ $subsubcriterion->created_at->format('d/m/Y H:i') }}</td>
                     </tr>

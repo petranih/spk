@@ -35,10 +35,18 @@ class SubSubCriteriaController extends Controller
             'code' => 'required|string|max:50|unique:sub_sub_criterias',
             'description' => 'nullable|string',
             'order' => 'required|integer',
-            'score' => 'required|numeric|min:0|max:1',
         ]);
 
-        $subcriterion->subSubCriterias()->create($request->all());
+        // Create without score - will be calculated later via pairwise comparison
+        $subcriterion->subSubCriterias()->create([
+            'name' => $request->name,
+            'code' => $request->code,
+            'description' => $request->description,
+            'order' => $request->order,
+            'score' => 0, // Default score, will be updated later
+            'weight' => 0, // Default weight, will be calculated later
+            'is_active' => true,
+        ]);
 
         return redirect()->route('admin.subsubcriteria.index', $subcriterion->id)
             ->with('success', 'Sub sub kriteria berhasil ditambahkan');
@@ -61,11 +69,16 @@ class SubSubCriteriaController extends Controller
             'code' => 'required|string|max:50|unique:sub_sub_criterias,code,' . $subsubcriterion->id,
             'description' => 'nullable|string',
             'order' => 'required|integer',
-            'score' => 'required|numeric|min:0|max:1',
             'is_active' => 'boolean',
         ]);
 
-        $subsubcriterion->update($request->all());
+        $subsubcriterion->update([
+            'name' => $request->name,
+            'code' => $request->code,
+            'description' => $request->description,
+            'order' => $request->order,
+            'is_active' => $request->has('is_active'),
+        ]);
 
         return redirect()->route('admin.subsubcriteria.index', $subcriterion->id)
             ->with('success', 'Sub sub kriteria berhasil diperbarui');

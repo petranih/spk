@@ -32,7 +32,7 @@
         @if($subCriterias->count() > 0)
             <div class="row">
                 <div class="col-md-8">
-                    <form method="GET" action="{{ route('admin.subsubcriteria.index') }}" id="subCriteriaForm">
+                    <form method="GET" action="{{ route('admin.subsubcriteria.index', 'placeholder') }}" id="subCriteriaForm">
                         <div class="input-group">
                             <select class="form-select" name="subcriteria_id" id="subCriteriaSelect" onchange="changeSubCriteria()">
                                 <option value="">-- Pilih Sub Kriteria --</option>
@@ -95,7 +95,7 @@
         @else
             <div class="text-center py-3">
                 <p class="text-muted">Belum ada sub kriteria yang tersedia</p>
-                <a href="{{ route('admin.criteria.subcriteria.index') }}" class="btn btn-primary">
+                <a href="{{ route('admin.subcriteria.index') }}" class="btn btn-primary">
                     <i class="fas fa-plus me-2"></i>Kelola Sub Kriteria
                 </a>
             </div>
@@ -122,7 +122,7 @@
                                 <th>Kode</th>
                                 <th>Nama Sub Sub Kriteria</th>
                                 <th>Bobot</th>
-                                                                            <th>Skor</th>
+                                <th>Skor</th>
                                 <th>Urutan</th>
                                 <th>Status</th>
                                 <th>Aksi</th>
@@ -134,9 +134,19 @@
                                 <td>{{ $index + 1 }}</td>
                                 <td><code>{{ $subSubCriteria->code }}</code></td>
                                 <td>{{ $subSubCriteria->name }}</td>
-                                <td>{{ number_format($subSubCriteria->weight, 6) }}</td>
                                 <td>
-                                    <span class="badge bg-info">{{ number_format($subSubCriteria->score, 3) }}</span>
+                                    @if($subSubCriteria->weight > 0)
+                                        <span class="badge bg-success">{{ number_format($subSubCriteria->weight, 6) }}</span>
+                                    @else
+                                        <span class="badge bg-warning">Belum Dihitung</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($subSubCriteria->score > 0)
+                                        <span class="badge bg-info">{{ number_format($subSubCriteria->score, 3) }}</span>
+                                    @else
+                                        <span class="badge bg-secondary">0</span>
+                                    @endif
                                 </td>
                                 <td>{{ $subSubCriteria->order }}</td>
                                 <td>
@@ -179,6 +189,12 @@
                             <i class="fas fa-balance-scale me-2"></i>
                             Perbandingan Berpasangan Sub Sub Kriteria
                         </a>
+                        @if($subSubCriterias->where('weight', 0)->count() > 0)
+                            <div class="alert alert-info mt-2">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Masih ada sub sub kriteria yang belum dihitung bobotnya. Silakan lakukan perbandingan berpasangan terlebih dahulu.
+                            </div>
+                        @endif
                     </div>
                 @endif
             @else
@@ -204,9 +220,12 @@
                     <label class="form-label"><strong>{{ $subcriterion->name }}</strong></label>
                     <select class="form-select" disabled>
                         <option value="">-- Pilih {{ $subcriterion->name }} --</option>
-                        @foreach($subSubCriterias->sortBy('order') as $subSubCriteria)
+                        @foreach($subSubCriterias->where('is_active', true)->sortBy('order') as $subSubCriteria)
                             <option value="{{ $subSubCriteria->id }}">
-                                {{ $subSubCriteria->name }} (Skor: {{ number_format($subSubCriteria->score, 3) }})
+                                {{ $subSubCriteria->name }}
+                                @if($subSubCriteria->score > 0)
+                                    (Skor: {{ number_format($subSubCriteria->score, 3) }})
+                                @endif
                             </option>
                         @endforeach
                     </select>
@@ -234,10 +253,10 @@ function changeSubCriteria() {
     
     if (subCriteriaId) {
         // Redirect to the selected sub criteria
-        window.location.href = `{{ route('admin.subsubcriteria.index') }}/${subCriteriaId}`;
+        window.location.href = `{{ route('admin.subsubcriteria.index', '') }}/${subCriteriaId}`;
     } else {
         // Redirect to index without sub criteria
-        window.location.href = `{{ route('admin.subsubcriteria.index') }}`;
+        window.location.href = `{{ route('admin.subsubcriteria.index', 'placeholder') }}`.replace('/placeholder', '');
     }
 }
 </script>
