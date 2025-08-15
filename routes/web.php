@@ -44,13 +44,16 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     ]);
     
     // Alternative route for subcriteria index without criteria parameter (for selection)
-    Route::get('/subcriteria', [SubCriteriaController::class, 'index'])->name('subcriteria.index');
+    Route::get('/subcriteria/{criterion?}', [SubCriteriaController::class, 'index'])->name('subcriteria.index');
     
     // Sub-subcriteria management (nested resource) 
     Route::resource('subcriteria.subsubcriteria', SubSubCriteriaController::class)->parameters([
         'subcriteria' => 'subcriterion',
         'subsubcriteria' => 'subsubcriterion'
     ]);
+    
+    // Alternative route for sub-subcriteria index without subcriterion parameter (for selection)
+    Route::get('/subsubcriteria/{subcriterion?}', [SubSubCriteriaController::class, 'index'])->name('subsubcriteria.index');
     
     // Pairwise comparison
     Route::prefix('pairwise')->name('pairwise.')->group(function () {

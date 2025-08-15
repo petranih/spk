@@ -12,7 +12,8 @@
                 <small class="text-muted">Kriteria: {{ $criterion->name }} ({{ $criterion->code }})</small>
             </div>
             <div class="card-body">
-                <form action="{{ route('admin.criteria.subcriteria.create', $criterion->id) }}" method="POST">
+                {{-- Perbaikan: Ganti route dari 'create' ke 'store' --}}
+                <form action="{{ route('admin.criteria.subcriteria.store', $criterion->id) }}" method="POST">
                     @csrf
                     
                     <div class="mb-3">

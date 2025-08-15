@@ -9,10 +9,18 @@ use App\Models\SubSubCriteria;
 
 class SubSubCriteriaController extends Controller
 {
-    public function index(SubCriteria $subcriterion)
+    public function index(SubCriteria $subcriterion = null)
     {
-        $subSubCriterias = $subcriterion->subSubCriterias()->orderBy('order')->get();
-        return view('admin.subsubcriteria.index', compact('subcriterion', 'subSubCriterias'));
+        // Get all subcriteria for selection
+        $subCriterias = SubCriteria::with('criteria')->orderBy('order')->get();
+        
+        $subSubCriterias = collect();
+        
+        if ($subcriterion) {
+            $subSubCriterias = $subcriterion->subSubCriterias()->orderBy('order')->get();
+        }
+        
+        return view('admin.subsubcriteria.index', compact('subcriterion', 'subSubCriterias', 'subCriterias'));
     }
 
     public function create(SubCriteria $subcriterion)
@@ -32,7 +40,7 @@ class SubSubCriteriaController extends Controller
 
         $subcriterion->subSubCriterias()->create($request->all());
 
-        return redirect()->route('admin.subcriteria.subsubcriteria.index', $subcriterion->id)
+        return redirect()->route('admin.subsubcriteria.index', $subcriterion->id)
             ->with('success', 'Sub sub kriteria berhasil ditambahkan');
     }
 
@@ -59,7 +67,7 @@ class SubSubCriteriaController extends Controller
 
         $subsubcriterion->update($request->all());
 
-        return redirect()->route('admin.subcriteria.subsubcriteria.index', $subcriterion->id)
+        return redirect()->route('admin.subsubcriteria.index', $subcriterion->id)
             ->with('success', 'Sub sub kriteria berhasil diperbarui');
     }
 
@@ -67,10 +75,10 @@ class SubSubCriteriaController extends Controller
     {
         try {
             $subsubcriterion->delete();
-            return redirect()->route('admin.subcriteria.subsubcriteria.index', $subcriterion->id)
+            return redirect()->route('admin.subsubcriteria.index', $subcriterion->id)
                 ->with('success', 'Sub sub kriteria berhasil dihapus');
         } catch (\Exception $e) {
-            return redirect()->route('admin.subcriteria.subsubcriteria.index', $subcriterion->id)
+            return redirect()->route('admin.subsubcriteria.index', $subcriterion->id)
                 ->with('error', 'Sub sub kriteria tidak dapat dihapus karena masih digunakan');
         }
     }
