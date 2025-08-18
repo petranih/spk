@@ -57,41 +57,7 @@
                 </div>
             </div>
             
-            <!-- Sub Criteria Cards (Alternative view) -->
-            <div class="row mt-3">
-                @foreach($subCriterias->groupBy('criteria.name') as $criteriaName => $subCritsByGroup)
-                    <div class="col-12">
-                        <h6 class="text-muted mb-2">{{ $criteriaName }}</h6>
-                        <div class="row mb-3">
-                            @foreach($subCritsByGroup as $subCrit)
-                                <div class="col-md-6 col-lg-4 mb-3">
-                                    <div class="card {{ $subcriterion && $subcriterion->id == $subCrit->id ? 'border-primary' : '' }}">
-                                        <div class="card-body">
-                                            <h6 class="card-title">
-                                                <code>{{ $subCrit->code }}</code>
-                                                @if($subcriterion && $subcriterion->id == $subCrit->id)
-                                                    <span class="badge bg-primary ms-2">Aktif</span>
-                                                @endif
-                                            </h6>
-                                            <p class="card-text">{{ $subCrit->name }}</p>
-                                            <small class="text-muted">
-                                                Bobot: {{ number_format($subCrit->weight, 6) }} | 
-                                                {{ $subCrit->subSubCriterias->count() }} sub sub kriteria
-                                            </small>
-                                            <div class="mt-2">
-                                                <a href="{{ route('admin.subsubcriteria.index', $subCrit->id) }}" 
-                                                   class="btn btn-sm {{ $subcriterion && $subcriterion->id == $subCrit->id ? 'btn-primary' : 'btn-outline-primary' }}">
-                                                    {{ $subcriterion && $subcriterion->id == $subCrit->id ? 'Aktif' : 'Pilih' }}
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-                @endforeach
-            </div>
+
         @else
             <div class="text-center py-3">
                 <p class="text-muted">Belum ada sub kriteria yang tersedia</p>

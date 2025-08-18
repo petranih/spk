@@ -15,6 +15,7 @@ use App\Http\Controllers\Student\StudentController;
 use App\Http\Controllers\Student\ApplicationController;
 use App\Http\Controllers\Validator\ValidatorController;
 use App\Http\Controllers\Validator\ValidationController;
+use App\Http\Controllers\AHPController;
 
 // Public routes
 Route::get('/', function () {
@@ -55,14 +56,50 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Alternative route for sub-subcriteria index without subcriterion parameter (for selection)
     Route::get('/subsubcriteria/{subcriterion?}', [SubSubCriteriaController::class, 'index'])->name('subsubcriteria.index');
     
-    // Pairwise comparison
+    // Pairwise Comparison Routes - Updated to match controller methods
     Route::prefix('pairwise')->name('pairwise.')->group(function () {
-        Route::get('/criteria', [PairwiseComparisonController::class, 'criteria'])->name('criteria');
-        Route::post('/criteria', [PairwiseComparisonController::class, 'storeCriteria'])->name('criteria.store');
-        Route::get('/criteria/{criterion}/subcriteria', [PairwiseComparisonController::class, 'subCriteria'])->name('subcriteria');
-        Route::post('/criteria/{criterion}/subcriteria', [PairwiseComparisonController::class, 'storeSubCriteria'])->name('subcriteria.store');
-        Route::get('/subcriteria/{subcriterion}/subsubcriteria', [PairwiseComparisonController::class, 'subSubCriteria'])->name('subsubcriteria');
-        Route::post('/subcriteria/{subcriterion}/subsubcriteria', [PairwiseComparisonController::class, 'storeSubSubCriteria'])->name('subsubcriteria.store');
+        
+        // Criteria Level
+        Route::get('/criteria', [PairwiseComparisonController::class, 'criteria'])
+            ->name('criteria');
+        Route::post('/criteria', [PairwiseComparisonController::class, 'storeCriteria'])
+            ->name('criteria.store');
+        
+        // Sub-Criteria Level - Updated routes to match controller
+        Route::get('/subcriteria/{criterion}', [PairwiseComparisonController::class, 'subCriteria'])
+            ->name('subcriteria');
+        Route::post('/subcriteria/{criterion}', [PairwiseComparisonController::class, 'storeSubCriteria'])
+            ->name('subcriteria.store');
+        
+        // Sub-Sub-Criteria Level - Updated routes to match controller
+        Route::get('/subsubcriteria/{subcriterion}', [PairwiseComparisonController::class, 'subSubCriteria'])
+            ->name('subsubcriteria');
+        Route::post('/subsubcriteria/{subcriterion}', [PairwiseComparisonController::class, 'storeSubSubCriteria'])
+            ->name('subsubcriteria.store');
+        
+        // Consistency Overview - New route
+        Route::get('/consistency-overview', [PairwiseComparisonController::class, 'consistencyOverview'])
+            ->name('consistency.overview');
+        
+        // Export and Utility Routes - New routes
+        Route::get('/export/{type}/{parentId?}', [PairwiseComparisonController::class, 'exportMatrix'])
+            ->name('export.matrix');
+        Route::post('/reset', [PairwiseComparisonController::class, 'resetComparisons'])
+            ->name('reset');
+    });
+
+    // AHP Calculation Routes - New section for manual calculations
+    Route::prefix('ahp')->name('ahp.')->group(function () {
+        Route::post('/calculate-criteria', [AHPController::class, 'calculateCriteriaWeights'])
+            ->name('calculate.criteria');
+        Route::post('/calculate-subcriteria/{criteriaId}', [AHPController::class, 'calculateSubCriteriaWeights'])
+            ->name('calculate.subcriteria');
+        Route::post('/calculate-subsubcriteria/{subCriteriaId}', [AHPController::class, 'calculateSubSubCriteriaWeights'])
+            ->name('calculate.subsubcriteria');
+        Route::post('/calculate-all/{periodId}', [AHPController::class, 'calculateAllApplicationsScores'])
+            ->name('calculate.all');
+        Route::post('/calculate-application/{applicationId}', [AHPController::class, 'calculateApplicationScore'])
+            ->name('calculate.application');
     });
     
     // Period management
@@ -103,4 +140,45 @@ Route::middleware(['auth', 'validator'])->prefix('validator')->name('validator.'
     Route::get('/validation', [ValidationController::class, 'index'])->name('validation.index');
     Route::get('/validation/{application}', [ValidationController::class, 'show'])->name('validation.show');
     Route::post('/validation/{application}', [ValidationController::class, 'validate'])->name('validation.store');
+});
+
+// API Routes for AJAX calls - New section for dynamic updates
+Route::prefix('api/admin')->name('api.admin.')->middleware(['auth', 'admin'])->group(function () {
+    // Consistency status check
+    Route::get('/consistency-status/{level}/{parentId?}', function($level, $parentId = null) {
+        $weight = \App\Models\CriteriaWeight::where('level', $level)
+            ->where('parent_id', $parentId)
+            ->first();
+        
+        return response()->json([
+            'status' => $weight ? ($weight->is_consistent ? 'consistent' : 'inconsistent') : 'no_data',
+            'cr' => $weight ? $weight->cr : null,
+            'ci' => $weight ? $weight->ci : null,
+            'lambda_max' => $weight ? $weight->lambda_max : null,
+        ]);
+    })->name('consistency.status');
+    
+    // Weights summary
+    Route::get('/weights-summary', function() {
+        return response()->json(\App\Models\CriteriaWeight::getConsistencySummary());
+    })->name('weights.summary');
+    
+    // Get criteria with subcriteria for dropdown
+    Route::get('/criteria-with-subcriteria', function() {
+        $criterias = \App\Models\Criteria::active()
+            ->with('subCriterias:id,criteria_id,code,name')
+            ->get(['id', 'code', 'name']);
+        
+        return response()->json($criterias);
+    })->name('criteria.with.subcriteria');
+    
+    // Get subcriteria with sub-subcriteria for dropdown
+    Route::get('/subcriteria-with-subsubcriteria/{criteriaId}', function($criteriaId) {
+        $subCriterias = \App\Models\SubCriteria::where('criteria_id', $criteriaId)
+            ->active()
+            ->with('subSubCriterias:id,sub_criteria_id,code,name')
+            ->get(['id', 'code', 'name']);
+        
+        return response()->json($subCriterias);
+    })->name('subcriteria.with.subsubcriteria');
 });

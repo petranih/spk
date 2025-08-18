@@ -4,6 +4,47 @@
 @section('page-title', 'Tambah Sub Kriteria')
 
 @section('content')
+
+<!-- Criteria Selection Card -->
+@if(!isset($criterion))
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Pilih Kriteria</h5>
+    </div>
+    <div class="card-body">
+        @php
+            $criterias = \App\Models\Criteria::orderBy('order')->get();
+        @endphp
+        @if($criterias->count() > 0)
+            <div class="row">
+                <div class="col-md-8">
+                    <form method="GET" action="{{ route('admin.criteria.subcriteria.create', 'placeholder') }}" id="criteriaForm">
+                        <div class="input-group">
+                            <select class="form-select" name="criteria_id" id="criteriaSelect" onchange="changeCriteria()">
+                                <option value="">-- Pilih Kriteria untuk Menambah Sub Kriteria --</option>
+                                @foreach($criterias as $crit)
+                                    <option value="{{ $crit->id }}">
+                                        {{ $crit->code }} - {{ $crit->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        @else
+            <div class="text-center py-3">
+                <p class="text-muted">Belum ada kriteria yang tersedia</p>
+                <a href="{{ route('admin.criteria.create') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Tambah Kriteria
+                </a>
+            </div>
+        @endif
+    </div>
+</div>
+@endif
+
+@if(isset($criterion))
 <div class="row">
     <div class="col-md-8">
         <div class="card">
@@ -12,7 +53,6 @@
                 <small class="text-muted">Kriteria: {{ $criterion->name }} ({{ $criterion->code }})</small>
             </div>
             <div class="card-body">
-                {{-- Perbaikan: Ganti route dari 'create' ke 'store' --}}
                 <form action="{{ route('admin.criteria.subcriteria.store', $criterion->id) }}" method="POST">
                     @csrf
                     
@@ -29,7 +69,7 @@
                         <label for="code" class="form-label">Kode Sub Kriteria</label>
                         <input type="text" class="form-control @error('code') is-invalid @enderror" 
                                id="code" name="code" value="{{ old('code') }}" required 
-                               placeholder="Contoh: C1_1, PEKERJAAN_AYAH, dst">
+                               placeholder="Contoh: {{ $criterion->code }}_1, {{ $criterion->code }}_2, dst">
                         @error('code')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
@@ -55,8 +95,13 @@
                         <div class="form-text">Urutan tampil sub kriteria (1 = pertama)</div>
                     </div>
                     
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Catatan:</strong> Bobot akan dihitung secara otomatis melalui perbandingan berpasangan setelah semua sub kriteria ditambahkan.
+                    </div>
+                    
                     <div class="d-flex justify-content-between">
-                        <a href="{{ route('admin.criteria.subcriteria.index', $criterion->id) }}" class="btn btn-secondary">
+                        <a href="{{ route('admin.subcriteria.index', $criterion->id) }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-2"></i>Kembali
                         </a>
                         <button type="submit" class="btn btn-primary">
@@ -126,26 +171,29 @@
                 <h6>Contoh Sub Kriteria untuk {{ $criterion->name }}:</h6>
                 @if($criterion->code == 'C1')
                     <ul class="small">
-                        <li><strong>Pekerjaan Ayah</strong> - C1_1</li>
-                        <li><strong>Pekerjaan Ibu</strong> - C1_2</li>
-                        <li><strong>Penghasilan Ayah</strong> - C1_3</li>
-                        <li><strong>Penghasilan Ibu</strong> - C1_4</li>
-                        <li><strong>Jumlah Tanggungan</strong> - C1_5</li>
-                        <li><strong>Kepemilikan Hutang</strong> - C1_6</li>
-                        <li><strong>Pendidikan Orang Tua</strong> - C1_7</li>
+                        <li><strong>Pekerjaan Ayah</strong> - {{ $criterion->code }}_1</li>
+                        <li><strong>Pekerjaan Ibu</strong> - {{ $criterion->code }}_2</li>
+                        <li><strong>Penghasilan Ayah</strong> - {{ $criterion->code }}_3</li>
+                        <li><strong>Penghasilan Ibu</strong> - {{ $criterion->code }}_4</li>
+                        <li><strong>Jumlah Tanggungan</strong> - {{ $criterion->code }}_5</li>
+                        <li><strong>Kepemilikan Hutang</strong> - {{ $criterion->code }}_6</li>
+                        <li><strong>Pendidikan Orang Tua</strong> - {{ $criterion->code }}_7</li>
                     </ul>
                 @elseif($criterion->code == 'C2')
                     <ul class="small">
-                        <li><strong>Dinding</strong> - C2_1</li>
-                        <li><strong>Lantai</strong> - C2_2</li>
-                        <li><strong>Atap</strong> - C2_3</li>
-                        <li><strong>Status Kepemilikan</strong> - C2_4</li>
-                        <li><strong>Luas Rumah</strong> - C2_5</li>
-                        <li><strong>Jumlah Kamar</strong> - C2_6</li>
-                        <li><strong>Orang per Kamar</strong> - C2_7</li>
+                        <li><strong>Dinding</strong> - {{ $criterion->code }}_1</li>
+                        <li><strong>Lantai</strong> - {{ $criterion->code }}_2</li>
+                        <li><strong>Atap</strong> - {{ $criterion->code }}_3</li>
+                        <li><strong>Status Kepemilikan</strong> - {{ $criterion->code }}_4</li>
+                        <li><strong>Luas Rumah</strong> - {{ $criterion->code }}_5</li>
+                        <li><strong>Jumlah Kamar</strong> - {{ $criterion->code }}_6</li>
+                        <li><strong>Orang per Kamar</strong> - {{ $criterion->code }}_7</li>
                     </ul>
                 @else
-                    <p class="small text-muted">Sesuaikan dengan kebutuhan kriteria</p>
+                    <ul class="small">
+                        <li>Sesuaikan dengan karakteristik kriteria</li>
+                        <li>Gunakan pola kode: {{ $criterion->code }}_1, {{ $criterion->code }}_2, dst</li>
+                    </ul>
                 @endif
                 
                 <hr>
@@ -155,9 +203,34 @@
                     <li>Gunakan nama yang jelas dan spesifik</li>
                     <li>Kode sebaiknya mengikuti pola induk</li>
                     <li>Urutan menentukan tampilan di form</li>
+                    <li>Bobot akan dihitung otomatis melalui perbandingan berpasangan</li>
                 </ul>
             </div>
         </div>
     </div>
 </div>
+@else
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-arrow-up fa-3x text-muted mb-3"></i>
+        <p class="text-muted">Pilih kriteria terlebih dahulu untuk menambah sub kriteria</p>
+        <a href="{{ route('admin.subcriteria.index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Kembali ke Kelola Sub Kriteria
+        </a>
+    </div>
+</div>
+@endif
+
+<script>
+function changeCriteria() {
+    const select = document.getElementById('criteriaSelect');
+    const criteriaId = select.value;
+    
+    if (criteriaId) {
+        // Redirect to the create page for selected criteria
+        window.location.href = `{{ route('admin.criteria.subcriteria.create', '') }}/${criteriaId}`;
+    }
+}
+</script>
+
 @endsection

@@ -32,7 +32,7 @@
         @if($criterias->count() > 0)
             <div class="row">
                 <div class="col-md-8">
-                    <form method="GET" action="{{ route('admin.criteria.subcriteria.index', 'placeholder') }}" id="criteriaForm">
+                    <form method="GET" action="{{ route('admin.subcriteria.index', 'placeholder') }}" id="criteriaForm">
                         <div class="input-group">
                             <select class="form-select" name="criteria_id" id="criteriaSelect" onchange="changeCriteria()">
                                 <option value="">-- Pilih Kriteria --</option>
@@ -54,35 +54,6 @@
                         </div>
                     @endif
                 </div>
-            </div>
-            
-            <!-- Kriteria Cards (Alternative view) -->
-            <div class="row mt-3">
-                @foreach($criterias as $crit)
-                    <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="card {{ $criterion && $criterion->id == $crit->id ? 'border-primary' : '' }}">
-                            <div class="card-body">
-                                <h6 class="card-title">
-                                    <code>{{ $crit->code }}</code>
-                                    @if($criterion && $criterion->id == $crit->id)
-                                        <span class="badge bg-primary ms-2">Aktif</span>
-                                    @endif
-                                </h6>
-                                <p class="card-text">{{ $crit->name }}</p>
-                                <small class="text-muted">
-                                    Bobot: {{ number_format($crit->weight, 6) }} | 
-                                    {{ $crit->subCriterias->count() }} sub kriteria
-                                </small>
-                                <div class="mt-2">
-                                    <a href="{{ route('admin.criteria.subcriteria.index', $crit->id) }}" 
-                                       class="btn btn-sm {{ $criterion && $criterion->id == $crit->id ? 'btn-primary' : 'btn-outline-primary' }}">
-                                        {{ $criterion && $criterion->id == $crit->id ? 'Aktif' : 'Pilih' }}
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                @endforeach
             </div>
         @else
             <div class="text-center py-3">
@@ -126,12 +97,18 @@
                                 <td>{{ $index + 1 }}</td>
                                 <td><code>{{ $subCriteria->code }}</code></td>
                                 <td>{{ $subCriteria->name }}</td>
-                                <td>{{ number_format($subCriteria->weight, 6) }}</td>
+                                <td>
+                                    @if($subCriteria->weight > 0)
+                                        <span class="badge bg-success">{{ number_format($subCriteria->weight, 6) }}</span>
+                                    @else
+                                        <span class="badge bg-warning">Belum Dihitung</span>
+                                    @endif
+                                </td>
                                 <td>{{ $subCriteria->order }}</td>
                                 <td>
                                     <span class="badge bg-info">{{ $subCriteria->subSubCriterias->count() }} Sub</span>
                                     @if($subCriteria->subSubCriterias->count() > 0)
-                                        <a href="{{ route('admin.subcriteria.subsubcriteria.index', $subCriteria->id) }}" 
+                                        <a href="{{ route('admin.subsubcriteria.index', $subCriteria->id) }}" 
                                            class="btn btn-sm btn-outline-info ms-1">
                                             <i class="fas fa-eye"></i>
                                         </a>
@@ -177,6 +154,12 @@
                             <i class="fas fa-balance-scale me-2"></i>
                             Perbandingan Berpasangan Sub Kriteria
                         </a>
+                        @if($subCriterias->where('weight', 0)->count() > 0)
+                            <div class="alert alert-info mt-2">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Masih ada sub kriteria yang belum dihitung bobotnya. Silakan lakukan perbandingan berpasangan terlebih dahulu.
+                            </div>
+                        @endif
                     </div>
                 @endif
             @else
@@ -206,10 +189,10 @@ function changeCriteria() {
     
     if (criteriaId) {
         // Redirect to the selected criteria
-        window.location.href = `{{ route('admin.criteria.subcriteria.index', '') }}/${criteriaId}`;
+        window.location.href = `{{ route('admin.subcriteria.index', '') }}/${criteriaId}`;
     } else {
         // Redirect to index without criteria
-        window.location.href = `{{ route('admin.criteria.subcriteria.index', 'placeholder') }}`.replace('/placeholder', '');
+        window.location.href = `{{ route('admin.subcriteria.index', 'placeholder') }}`.replace('/placeholder', '');
     }
 }
 </script>
