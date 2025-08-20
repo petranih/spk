@@ -196,12 +196,18 @@
                             @endforeach
                         </div>
                         
-                        {{-- Sub-criteria navigation if available --}}
-                        @if($criterias->whereHas('subCriterias')->count() > 0)
+                        {{-- Sub-criteria navigation if available - FIXED --}}
+                        @php
+                            $criteriasWithSubCriteria = $criterias->filter(function($criteria) {
+                                return $criteria->subCriterias && $criteria->subCriterias->count() > 0;
+                            });
+                        @endphp
+                        
+                        @if($criteriasWithSubCriteria->count() > 0)
                             <hr>
                             <h6>Lanjut ke Sub Kriteria:</h6>
                             <div class="row">
-                                @foreach($criterias->whereHas('subCriterias') as $criteria)
+                                @foreach($criteriasWithSubCriteria as $criteria)
                                     <div class="col-md-4 mb-2">
                                         <a href="{{ route('admin.pairwise.subcriteria', $criteria->id) }}" 
                                            class="btn btn-outline-primary btn-sm w-100">

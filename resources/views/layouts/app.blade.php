@@ -51,6 +51,25 @@
             font-weight: bold;
             color: #667eea !important;
         }
+        
+        /* Dropdown menu styling */
+        .sidebar .dropdown-menu {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            backdrop-filter: blur(10px);
+        }
+        .sidebar .dropdown-item {
+            color: rgba(255,255,255,0.8);
+            transition: all 0.3s ease;
+        }
+        .sidebar .dropdown-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        .sidebar .dropdown-toggle::after {
+            float: right;
+            margin-top: 8px;
+        }
     </style>
     
     @stack('styles')
@@ -79,48 +98,123 @@
                                 <a class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}">
                                     <i class="fas fa-tachometer-alt me-2"></i> Dashboard
                                 </a>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{{ route('admin.criteria.index') }}">
-                                        <i class="ni ni-bullet-list-67 text-primary"></i> Kriteria
+                                
+                                {{-- Criteria Management Dropdown --}}
+                                <div class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle {{ request()->routeIs('admin.criteria*') || request()->routeIs('admin.subcriteria*') || request()->routeIs('admin.subsubcriteria*') ? 'active' : '' }}" 
+                                       href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-layer-group me-2"></i> Kelola Kriteria
                                     </a>
-                                </li>
-
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{{ route('admin.criteria.subcriteria.index', 1) }}">
-                                        <i class="ni ni-collection text-orange"></i> Sub Kriteria
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item {{ request()->routeIs('admin.criteria*') ? 'active' : '' }}" href="{{ route('admin.criteria.index') }}">
+                                            <i class="fas fa-list me-2"></i> Kriteria Utama
+                                        </a></li>
+                                        <li><a class="dropdown-item {{ request()->routeIs('admin.subcriteria*') ? 'active' : '' }}" href="{{ route('admin.subcriteria.index') }}">
+                                            <i class="fas fa-list-ul me-2"></i> Sub Kriteria
+                                        </a></li>
+                                        <li><a class="dropdown-item {{ request()->routeIs('admin.subsubcriteria*') ? 'active' : '' }}" href="{{ route('admin.subsubcriteria.index') }}">
+                                            <i class="fas fa-indent me-2"></i> Sub-Sub Kriteria
+                                        </a></li>
+                                    </ul>
+                                </div>
+                                
+                                {{-- AHP Pairwise Comparison Dropdown --}}
+                                <div class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle {{ request()->routeIs('admin.pairwise*') ? 'active' : '' }}" 
+                                       href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-balance-scale me-2"></i> Perbandingan AHP
                                     </a>
-                                </li>
-
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{{ route('admin.subcriteria.subsubcriteria.index', 1) }}">
-                                        <i class="ni ni-archive-2 text-yellow"></i> Sub-Sub Kriteria
-                                    </a>
-                                </li>
-                                <a class="nav-link {{ request()->routeIs('admin.pairwise*') ? 'active' : '' }}" href="{{ route('admin.pairwise.criteria') }}">
-                                    <i class="fas fa-balance-scale me-2"></i> Perbandingan AHP
-                                </a>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="{{ route('admin.pairwise.index') }}">
+                                            <i class="fas fa-home me-2"></i> Overview AHP
+                                        </a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="{{ route('admin.pairwise.criteria') }}">
+                                            <i class="fas fa-layer-group me-2"></i> Kriteria Utama
+                                        </a></li>
+                                        
+                                        {{-- Dynamic Sub Criteria Links --}}
+                                        @php
+                                            $criteriaWithSubs = \App\Models\Criteria::active()
+                                                ->whereHas('subCriterias', function($query) {
+                                                    $query->active();
+                                                })
+                                                ->with(['subCriterias' => function($query) {
+                                                    $query->active();
+                                                }])
+                                                ->get();
+                                        @endphp
+                                        
+                                        @if($criteriaWithSubs->count() > 0)
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><h6 class="dropdown-header">Sub Kriteria</h6></li>
+                                            @foreach($criteriaWithSubs as $criteria)
+                                                @if($criteria->subCriterias->count() >= 2)
+                                                    <li><a class="dropdown-item" href="{{ route('admin.pairwise.subcriteria', $criteria->id) }}">
+                                                        <i class="fas fa-list me-2"></i> {{ $criteria->code }} - Sub Kriteria
+                                                    </a></li>
+                                                @endif
+                                            @endforeach
+                                        @endif
+                                        
+                                        {{-- Dynamic Sub-Sub Criteria Links --}}
+                                        @php
+                                            $subCriteriaWithSubSubs = \App\Models\SubCriteria::active()
+                                                ->whereHas('subSubCriterias', function($query) {
+                                                    $query->active();
+                                                })
+                                                ->whereHas('criteria', function($query) {
+                                                    $query->active();
+                                                })
+                                                ->with(['subSubCriterias' => function($query) {
+                                                    $query->active();
+                                                }, 'criteria'])
+                                                ->get();
+                                        @endphp
+                                        
+                                        @if($subCriteriaWithSubSubs->count() > 0)
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><h6 class="dropdown-header">Sub-Sub Kriteria</h6></li>
+                                            @foreach($subCriteriaWithSubSubs as $subCriteria)
+                                                @if($subCriteria->subSubCriterias->count() >= 2)
+                                                    <li><a class="dropdown-item" href="{{ route('admin.pairwise.subsubcriteria', $subCriteria->id) }}">
+                                                        <i class="fas fa-list-ul me-2"></i> {{ $subCriteria->criteria->code }} → {{ $subCriteria->code }}
+                                                    </a></li>
+                                                @endif
+                                            @endforeach
+                                        @endif
+                                        
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="{{ route('admin.pairwise.consistency.overview') }}">
+                                            <i class="fas fa-chart-line me-2"></i> Status Konsistensi
+                                        </a></li>
+                                    </ul>
+                                </div>
+                                
                                 <a class="nav-link {{ request()->routeIs('admin.period*') ? 'active' : '' }}" href="{{ route('admin.period.index') }}">
-                                    <i class="fas fa-calendar me-2"></i> Periode
+                                    <i class="fas fa-calendar me-2"></i> Periode Beasiswa
                                 </a>
                                 <a class="nav-link {{ request()->routeIs('admin.student*') ? 'active' : '' }}" href="{{ route('admin.student.index') }}">
-                                    <i class="fas fa-users me-2"></i> Siswa
+                                    <i class="fas fa-users me-2"></i> Kelola Siswa
                                 </a>
                                 <a class="nav-link {{ request()->routeIs('admin.report*') ? 'active' : '' }}" href="{{ route('admin.report.index') }}">
-                                    <i class="fas fa-chart-bar me-2"></i> Laporan
+                                    <i class="fas fa-chart-bar me-2"></i> Laporan & Hasil
                                 </a>
+                                
                             @elseif(Auth::user()->isValidator())
                                 <a class="nav-link {{ request()->routeIs('validator.dashboard') ? 'active' : '' }}" href="{{ route('validator.dashboard') }}">
                                     <i class="fas fa-tachometer-alt me-2"></i> Dashboard
                                 </a>
                                 <a class="nav-link {{ request()->routeIs('validator.validation*') ? 'active' : '' }}" href="{{ route('validator.validation.index') }}">
-                                    <i class="fas fa-check-circle me-2"></i> Validasi
+                                    <i class="fas fa-check-circle me-2"></i> Validasi Berkas
                                 </a>
+                                
                             @elseif(Auth::user()->isStudent())
                                 <a class="nav-link {{ request()->routeIs('student.dashboard') ? 'active' : '' }}" href="{{ route('student.dashboard') }}">
                                     <i class="fas fa-tachometer-alt me-2"></i> Dashboard
                                 </a>
                                 <a class="nav-link {{ request()->routeIs('student.application*') ? 'active' : '' }}" href="{{ route('student.application.create') }}">
-                                    <i class="fas fa-file-alt me-2"></i> Permohonan
+                                    <i class="fas fa-file-alt me-2"></i> Ajukan Beasiswa
                                 </a>
                             @endif
                         </nav>
@@ -141,20 +235,61 @@
                     <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
                         <div class="container-fluid">
                             <a class="navbar-brand" href="#">@yield('page-title', 'Dashboard')</a>
+                            
+                            {{-- Breadcrumb Navigation if exists --}}
+                            @if(isset($breadcrumbs) && !empty($breadcrumbs))
+                                <nav aria-label="breadcrumb" class="me-auto ms-3">
+                                    <ol class="breadcrumb mb-0">
+                                        @foreach($breadcrumbs as $breadcrumb)
+                                            @if($loop->last)
+                                                <li class="breadcrumb-item active" aria-current="page">{{ $breadcrumb['title'] }}</li>
+                                            @else
+                                                <li class="breadcrumb-item">
+                                                    <a href="{{ $breadcrumb['url'] }}">{{ $breadcrumb['title'] }}</a>
+                                                </li>
+                                            @endif
+                                        @endforeach
+                                    </ol>
+                                </nav>
+                            @endif
+                            
                             <div class="navbar-nav ms-auto">
-                                <span class="navbar-text">
-                                    <i class="fas fa-user-circle me-1"></i>
-                                    {{ Auth::user()->name }}
-                                </span>
+                                <div class="dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-user-circle me-1"></i>
+                                        {{ Auth::user()->name }}
+                                    </a>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><h6 class="dropdown-header">{{ Auth::user()->email }}</h6></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <form action="{{ route('logout') }}" method="POST" class="d-inline">
+                                                @csrf
+                                                <button type="submit" class="dropdown-item">
+                                                    <i class="fas fa-sign-out-alt me-2"></i> Logout
+                                                </button>
+                                            </form>
+                                        </li>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
                     </nav>
                     
                     <div class="container-fluid p-4">
+                        {{-- Alert Messages --}}
                         @if(session('success'))
                             <div class="alert alert-success alert-dismissible fade show" role="alert">
                                 <i class="fas fa-check-circle me-2"></i>
                                 {{ session('success') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+                        
+                        @if(session('warning'))
+                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                {{ session('warning') }}
                                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                             </div>
                         @endif
@@ -178,7 +313,8 @@
                         @if($errors->any())
                             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                                 <i class="fas fa-exclamation-triangle me-2"></i>
-                                <ul class="mb-0">
+                                <strong>Terdapat kesalahan:</strong>
+                                <ul class="mb-0 mt-2">
                                     @foreach($errors->all() as $error)
                                         <li>{{ $error }}</li>
                                     @endforeach
@@ -209,12 +345,38 @@
     
     <script>
         $(document).ready(function() {
+            // Initialize DataTables
             $('.table-datatable').DataTable({
                 language: {
                     url: 'https://cdn.datatables.net/plug-ins/1.11.5/i18n/id.json'
+                },
+                responsive: true,
+                pageLength: 10,
+                lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Semua"]],
+                dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>t<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+            });
+            
+            // Auto-close alerts after 5 seconds
+            setTimeout(function() {
+                $('.alert').fadeOut('slow');
+            }, 5000);
+            
+            // CSRF Token setup for AJAX
+            $.ajaxSetup({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                 }
             });
         });
+        
+        // Confirmation dialogs
+        function confirmDelete(message = 'Apakah Anda yakin ingin menghapus item ini?') {
+            return confirm(message);
+        }
+        
+        function confirmAction(message = 'Apakah Anda yakin ingin melakukan tindakan ini?') {
+            return confirm(message);
+        }
     </script>
     
     @stack('scripts')

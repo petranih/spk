@@ -56,8 +56,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Alternative route for sub-subcriteria index without subcriterion parameter (for selection)
     Route::get('/subsubcriteria/{subcriterion?}', [SubSubCriteriaController::class, 'index'])->name('subsubcriteria.index');
     
-    // Pairwise Comparison Routes - Updated to match controller methods
+    // Pairwise Comparison Routes - Updated with index and proper navigation
     Route::prefix('pairwise')->name('pairwise.')->group(function () {
+        
+        // Main Index/Navigation Page - NEW
+        Route::get('/', [PairwiseComparisonController::class, 'index'])
+            ->name('index');
         
         // Criteria Level
         Route::get('/criteria', [PairwiseComparisonController::class, 'criteria'])

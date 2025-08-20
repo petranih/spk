@@ -2,7 +2,7 @@
 @extends('layouts.app')
 
 @section('title', 'Perbandingan Berpasangan Sub-Sub Kriteria')
-@section('page-title', 'Perbandingan Berpasangan Sub-Sub Kriteria - ' . $subcriterion->name)
+@section('page-title', 'Perbandingan Berpasangan Sub-Sub Kriteria')
 
 @push('styles')
 <style>
@@ -42,67 +42,46 @@
     .weight-card:hover {
         transform: translateY(-2px);
     }
-    .breadcrumb-item a {
-        text-decoration: none;
-    }
-    .hierarchy-info {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    .breadcrumb-card {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         color: white;
         border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 20px;
     }
 </style>
 @endpush
 
 @section('content')
-<div class="row">
+<div class="row mb-4">
     <div class="col-12">
-        {{-- Breadcrumb --}}
-        <nav aria-label="breadcrumb" class="mb-3">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item">
-                    <a href="{{ route('admin.pairwise.criteria') }}">
-                        <i class="fas fa-layer-group me-1"></i>Kriteria
-                    </a>
-                </li>
-                <li class="breadcrumb-item">
-                    <a href="{{ route('admin.pairwise.subcriteria', $subcriterion->criteria->id) }}">
-                        {{ $subcriterion->criteria->code }} - {{ $subcriterion->criteria->name }}
-                    </a>
-                </li>
-                <li class="breadcrumb-item active">
-                    {{ $subcriterion->code }} - {{ $subcriterion->name }}
-                </li>
-            </ol>
-        </nav>
-
-        {{-- Hierarchy Info --}}
-        <div class="hierarchy-info">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-sitemap fa-2x me-3"></i>
-                        <div>
-                            <h6 class="mb-1">Hierarki: Kriteria → Sub Kriteria → Sub-Sub Kriteria</h6>
-                            <p class="mb-0">
-                                <strong>{{ $subcriterion->criteria->code }}</strong> → 
-                                <strong>{{ $subcriterion->code }}</strong> → 
-                                Sub-Sub Kriteria
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 text-end">
-                    <div>
-                        <small class="d-block">Bobot Kriteria: {{ number_format($subcriterion->criteria->weight, 4) }}</small>
-                        <small class="d-block">Bobot Sub Kriteria: {{ number_format($subcriterion->weight, 4) }}</small>
-                        <small class="d-block">Bobot Global: {{ number_format($subcriterion->criteria->weight * $subcriterion->weight, 4) }}</small>
-                    </div>
-                </div>
+        {{-- Breadcrumb Navigation --}}
+        <div class="card breadcrumb-card">
+            <div class="card-body">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb text-white mb-0">
+                        <li class="breadcrumb-item">
+                            <a href="{{ route('admin.pairwise.criteria') }}" class="text-white">
+                                <i class="fas fa-layer-group me-1"></i>Kriteria
+                            </a>
+                        </li>
+                        <li class="breadcrumb-item">
+                            <a href="{{ route('admin.pairwise.subcriteria', $subcriterion->criteria->id) }}" class="text-white">
+                                <i class="fas fa-list me-1"></i>
+                                {{ $subcriterion->criteria->code }} - Sub Kriteria
+                            </a>
+                        </li>
+                        <li class="breadcrumb-item active text-white" aria-current="page">
+                            <i class="fas fa-list-ul me-1"></i>
+                            Sub-Sub Kriteria: {{ $subcriterion->code }} - {{ $subcriterion->name }}
+                        </li>
+                    </ol>
+                </nav>
             </div>
         </div>
+    </div>
+</div>
 
+<div class="row">
+    <div class="col-12">
         {{-- Consistency Indicator --}}
         @php
             $subSubCriteriaWeight = \App\Models\CriteriaWeight::where('level', 'subsubcriteria')
@@ -140,8 +119,14 @@
         <div class="card">
             <div class="card-header">
                 <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Matriks Perbandingan Berpasangan Sub-Sub Kriteria</h5>
-                    <span class="badge bg-success">{{ $subSubCriterias->count() }} Sub-Sub Kriteria</span>
+                    <div>
+                        <h5 class="mb-1">Matriks Perbandingan Berpasangan Sub-Sub Kriteria</h5>
+                        <small class="text-muted">
+                            Sub Kriteria: {{ $subcriterion->code }} - {{ $subcriterion->name }}<br>
+                            <small class="text-muted">Kriteria: {{ $subcriterion->criteria->code }} - {{ $subcriterion->criteria->name }}</small>
+                        </small>
+                    </div>
+                    <span class="badge bg-info">{{ $subSubCriterias->count() }} Sub-Sub Kriteria</span>
                 </div>
             </div>
             <div class="card-body">
@@ -151,13 +136,13 @@
                         
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle me-2"></i>
-                            <strong>Petunjuk:</strong> Berikan nilai perbandingan untuk setiap pasangan sub-sub kriteria dalam sub kriteria {{ $subcriterion->code }}.
+                            <strong>Petunjuk:</strong> Berikan nilai perbandingan untuk setiap pasangan sub-sub kriteria dalam sub kriteria <strong>{{ $subcriterion->name }}</strong>.
                             Skala: 1 = Sama penting, 3 = Sedikit lebih penting, 5 = Lebih penting, 7 = Sangat penting, 9 = Mutlak lebih penting.
                         </div>
                         
                         <div class="table-responsive">
                             <table class="table table-bordered comparison-table">
-                                <thead class="table-success">
+                                <thead class="table-dark">
                                     <tr>
                                         <th>Sub-Sub Kriteria</th>
                                         @foreach($subSubCriterias as $subSubCriteria)
@@ -169,9 +154,9 @@
                                     @php $comparisonIndex = 0; @endphp
                                     @foreach($subSubCriterias as $i => $subSubCriteriaA)
                                         <tr>
-                                            <th class="table-success">
+                                            <th class="table-dark">
                                                 {{ $subSubCriteriaA->code }}<br>
-                                                <small>{{ $subSubCriteriaA->name }}</small>
+                                                <small>{{ Str::limit($subSubCriteriaA->name, 25) }}</small>
                                             </th>
                                             @foreach($subSubCriterias as $j => $subSubCriteriaB)
                                                 <td class="{{ $i == $j ? 'diagonal-cell' : 'matrix-cell' }}">
@@ -225,7 +210,7 @@
                         </div>
                         
                         <div class="text-center mt-4">
-                            <button type="submit" class="btn btn-success btn-lg">
+                            <button type="submit" class="btn btn-primary btn-lg">
                                 <i class="fas fa-calculator me-2"></i>
                                 Hitung Bobot AHP
                             </button>
@@ -238,17 +223,14 @@
                         <h6>Bobot Sub-Sub Kriteria Saat Ini:</h6>
                         <div class="row">
                             @foreach($subSubCriterias as $subSubCriteria)
-                                <div class="col-md-4 mb-3">
-                                    <div class="card weight-card border-success">
+                                <div class="col-md-3 mb-3">
+                                    <div class="card weight-card">
                                         <div class="card-body text-center">
                                             <h6 class="card-title">{{ $subSubCriteria->code }}</h6>
-                                            <h4 class="text-success mb-1">{{ number_format($subSubCriteria->weight, 4) }}</h4>
-                                            <small class="text-muted d-block">Local: {{ number_format($subSubCriteria->weight * 100, 2) }}%</small>
-                                            <small class="text-muted d-block">
-                                                Global: {{ number_format($subcriterion->criteria->weight * $subcriterion->weight * $subSubCriteria->weight * 100, 2) }}%
-                                            </small>
+                                            <h4 class="text-primary mb-1">{{ number_format($subSubCriteria->weight, 4) }}</h4>
+                                            <small class="text-muted">{{ number_format($subSubCriteria->weight * 100, 2) }}%</small>
                                             <div class="progress mt-2" style="height: 6px;">
-                                                <div class="progress-bar bg-success" role="progressbar" 
+                                                <div class="progress-bar" role="progressbar" 
                                                      style="width: {{ $subSubCriteria->weight * 100 }}%"></div>
                                             </div>
                                         </div>
@@ -256,29 +238,13 @@
                                 </div>
                             @endforeach
                         </div>
-                        
-                        {{-- Global weights summary --}}
-                        <div class="alert alert-light border">
-                            <h6><i class="fas fa-globe me-2"></i>Bobot Global (Keseluruhan)</h6>
-                            <div class="row">
-                                @foreach($subSubCriterias as $subSubCriteria)
-                                    @php
-                                        $globalWeight = $subcriterion->criteria->weight * $subcriterion->weight * $subSubCriteria->weight;
-                                    @endphp
-                                    <div class="col-md-3 mb-2">
-                                        <strong>{{ $subSubCriteria->code }}:</strong>
-                                        <span class="badge bg-primary">{{ number_format($globalWeight, 4) }}</span>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
                     @endif
                 @else
                     <div class="text-center py-5">
                         <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
                         <h5>Sub-Sub Kriteria Tidak Cukup</h5>
                         <p class="text-muted">Minimal 2 sub-sub kriteria diperlukan untuk melakukan perbandingan berpasangan.</p>
-                        <a href="{{ route('admin.subsubcriteria.create') }}?sub_criteria_id={{ $subcriterion->id }}" class="btn btn-success">
+                        <a href="{{ route('admin.subcriteria.subsubcriteria.create', $subcriterion->id) }}" class="btn btn-primary">
                             <i class="fas fa-plus me-2"></i>Tambah Sub-Sub Kriteria
                         </a>
                     </div>
@@ -373,58 +339,59 @@
             </div>
         </div>
         
+        {{-- Navigation Back --}}
         <div class="card mt-3">
             <div class="card-header">
                 <h6 class="mb-0">Navigasi</h6>
             </div>
             <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{{ route('admin.pairwise.subcriteria', $subcriterion->criteria->id) }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-arrow-left me-1"></i> Kembali ke Sub Kriteria
-                    </a>
-                    <a href="{{ route('admin.pairwise.criteria') }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-home me-1"></i> Ke Kriteria Utama
-                    </a>
-                </div>
+                <a href="{{ route('admin.pairwise.subcriteria', $subcriterion->criteria->id) }}" class="btn btn-outline-secondary btn-sm w-100 mb-2">
+                    <i class="fas fa-arrow-left me-1"></i>Kembali ke Sub Kriteria
+                </a>
+                
+                <a href="{{ route('admin.pairwise.criteria') }}" class="btn btn-outline-primary btn-sm w-100 mb-2">
+                    <i class="fas fa-layer-group me-1"></i>Kembali ke Kriteria
+                </a>
+                
+                {{-- Show other sub-criteria with sub-sub-criteria if available --}}
+                @php
+                    $otherSubCriterias = $subcriterion->criteria->subCriterias->where('id', '!=', $subcriterion->id);
+                @endphp
+                
+                @if($otherSubCriterias->count() > 0)
+                    <div class="dropdown-divider"></div>
+                    <small class="text-muted d-block mb-2">Sub Kriteria Lainnya:</small>
+                    @foreach($otherSubCriterias as $otherSubCriteria)
+                        @if($otherSubCriteria->subSubCriterias->count() >= 2)
+                            <a href="{{ route('admin.pairwise.subsubcriteria', $otherSubCriteria->id) }}" 
+                               class="btn btn-outline-info btn-sm w-100 mb-1">
+                                <i class="fas fa-list-ul me-1"></i>{{ $otherSubCriteria->code }}
+                            </a>
+                        @endif
+                    @endforeach
+                @endif
             </div>
         </div>
         
+        {{-- Hierarchy Summary --}}
         <div class="card mt-3">
             <div class="card-header">
-                <h6 class="mb-0">Hierarki Bobot</h6>
+                <h6 class="mb-0">Hierarki</h6>
             </div>
             <div class="card-body">
                 <div class="small">
                     <div class="mb-2">
-                        <strong>{{ $subcriterion->criteria->code }}</strong> (Kriteria)
-                        <div class="progress" style="height: 4px;">
-                            <div class="progress-bar bg-primary" style="width: {{ $subcriterion->criteria->weight * 100 }}%"></div>
-                        </div>
-                        <small>{{ number_format($subcriterion->criteria->weight, 4) }}</small>
+                        <strong>Kriteria:</strong><br>
+                        {{ $subcriterion->criteria->code }} - {{ $subcriterion->criteria->name }}
                     </div>
-                    
-                    <div class="mb-2 ms-3">
-                        <strong>{{ $subcriterion->code }}</strong> (Sub Kriteria)
-                        <div class="progress" style="height: 4px;">
-                            <div class="progress-bar bg-info" style="width: {{ $subcriterion->weight * 100 }}%"></div>
-                        </div>
-                        <small>{{ number_format($subcriterion->weight, 4) }}</small>
+                    <div class="mb-2">
+                        <strong>Sub Kriteria:</strong><br>
+                        {{ $subcriterion->code }} - {{ $subcriterion->name }}
                     </div>
-                    
-                    @if($subSubCriterias->where('weight', '>', 0)->count() > 0)
-                        @foreach($subSubCriterias->take(3) as $ssc)
-                            <div class="mb-1 ms-4">
-                                <strong>{{ $ssc->code }}</strong> (Sub-Sub)
-                                <div class="progress" style="height: 3px;">
-                                    <div class="progress-bar bg-success" style="width: {{ $ssc->weight * 100 }}%"></div>
-                                </div>
-                                <small>{{ number_format($ssc->weight, 4) }}</small>
-                            </div>
-                        @endforeach
-                        @if($subSubCriterias->count() > 3)
-                            <small class="text-muted ms-4">... dan {{ $subSubCriterias->count() - 3 }} lainnya</small>
-                        @endif
-                    @endif
+                    <div>
+                        <strong>Total Sub-Sub Kriteria:</strong><br>
+                        {{ $subSubCriterias->count() }} item
+                    </div>
                 </div>
             </div>
         </div>

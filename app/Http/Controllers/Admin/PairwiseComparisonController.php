@@ -22,7 +22,14 @@ class PairwiseComparisonController extends Controller
 
     public function criteria()
     {
-        $criterias = Criteria::active()->orderBy('order')->get();
+        // Load criteria with subcriteria relationship for navigation
+        $criterias = Criteria::active()
+            ->with(['subCriterias' => function($query) {
+                $query->active();
+            }])
+            ->orderBy('order')
+            ->get();
+            
         $comparisons = $this->getExistingComparisons('criteria');
         
         return view('admin.pairwise.criteria', compact('criterias', 'comparisons'));
@@ -75,7 +82,15 @@ class PairwiseComparisonController extends Controller
 
     public function subCriteria(Criteria $criterion)
     {
-        $subCriterias = $criterion->subCriterias()->active()->orderBy('order')->get();
+        // Load subcriteria with sub-sub-criteria relationship for navigation
+        $subCriterias = $criterion->subCriterias()
+            ->active()
+            ->with(['subSubCriterias' => function($query) {
+                $query->active();
+            }])
+            ->orderBy('order')
+            ->get();
+            
         $comparisons = $this->getExistingComparisons('subcriteria', $criterion->id);
         
         return view('admin.pairwise.subcriteria', compact('criterion', 'subCriterias', 'comparisons'));
@@ -132,7 +147,7 @@ class PairwiseComparisonController extends Controller
         $comparisons = $this->getExistingComparisons('subsubcriteria', $subcriterion->id);
         
         // Load relationships for breadcrumb and hierarchy display
-        $subcriterion->load('criteria');
+        $subcriterion->load(['criteria', 'subSubCriterias']);
         
         return view('admin.pairwise.subsubcriteria', compact('subcriterion', 'subSubCriterias', 'comparisons'));
     }
@@ -314,5 +329,60 @@ class PairwiseComparisonController extends Controller
         }
 
         return redirect()->back()->with('success', 'Perbandingan berpasangan berhasil direset');
+    }
+
+    /**
+     * Get pairwise comparison navigation menu
+     */
+    public function index()
+    {
+        $criterias = Criteria::active()
+            ->with(['subCriterias' => function($query) {
+                $query->active()->with(['subSubCriterias' => function($subQuery) {
+                    $subQuery->active();
+                }]);
+            }])
+            ->orderBy('order')
+            ->get();
+
+        // Get consistency summary
+        $consistencyData = [
+            'criteria_consistent' => CriteriaWeight::where('level', 'criteria')
+                ->where('parent_id', null)
+                ->where('is_consistent', true)
+                ->exists(),
+            'subcriteria_total' => 0,
+            'subcriteria_consistent' => 0,
+            'subsubcriteria_total' => 0,
+            'subsubcriteria_consistent' => 0,
+        ];
+
+        foreach ($criterias as $criteria) {
+            if ($criteria->subCriterias->count() >= 2) {
+                $consistencyData['subcriteria_total']++;
+                $weight = CriteriaWeight::where('level', 'subcriteria')
+                    ->where('parent_id', $criteria->id)
+                    ->where('is_consistent', true)
+                    ->first();
+                if ($weight) {
+                    $consistencyData['subcriteria_consistent']++;
+                }
+            }
+
+            foreach ($criteria->subCriterias as $subCriteria) {
+                if ($subCriteria->subSubCriterias->count() >= 2) {
+                    $consistencyData['subsubcriteria_total']++;
+                    $weight = CriteriaWeight::where('level', 'subsubcriteria')
+                        ->where('parent_id', $subCriteria->id)
+                        ->where('is_consistent', true)
+                        ->first();
+                    if ($weight) {
+                        $consistencyData['subsubcriteria_consistent']++;
+                    }
+                }
+            }
+        }
+
+        return view('admin.pairwise.index', compact('criterias', 'consistencyData'));
     }
 }

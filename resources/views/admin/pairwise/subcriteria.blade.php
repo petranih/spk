@@ -2,7 +2,7 @@
 @extends('layouts.app')
 
 @section('title', 'Perbandingan Berpasangan Sub Kriteria')
-@section('page-title', 'Perbandingan Berpasangan Sub Kriteria - ' . $criterion->name)
+@section('page-title', 'Perbandingan Berpasangan Sub Kriteria')
 
 @push('styles')
 <style>
@@ -42,41 +42,40 @@
     .weight-card:hover {
         transform: translateY(-2px);
     }
-    .breadcrumb-item a {
-        text-decoration: none;
+    .breadcrumb-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
     }
 </style>
 @endpush
 
 @section('content')
-<div class="row">
+<div class="row mb-4">
     <div class="col-12">
-        {{-- Breadcrumb --}}
-        <nav aria-label="breadcrumb" class="mb-3">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item">
-                    <a href="{{ route('admin.pairwise.criteria') }}">
-                        <i class="fas fa-layer-group me-1"></i>Kriteria
-                    </a>
-                </li>
-                <li class="breadcrumb-item active">
-                    {{ $criterion->code }} - {{ $criterion->name }}
-                </li>
-            </ol>
-        </nav>
-
-        {{-- Parent Criteria Info --}}
-        <div class="alert alert-primary">
-            <div class="d-flex align-items-center">
-                <i class="fas fa-info-circle fa-2x me-3"></i>
-                <div>
-                    <h6 class="mb-1">Kriteria Induk: {{ $criterion->code }}</h6>
-                    <p class="mb-0">{{ $criterion->name }}</p>
-                    <small>Bobot Kriteria: {{ number_format($criterion->weight, 4) }} ({{ number_format($criterion->weight * 100, 2) }}%)</small>
-                </div>
+        {{-- Breadcrumb Navigation --}}
+        <div class="card breadcrumb-card">
+            <div class="card-body">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb text-white mb-0">
+                        <li class="breadcrumb-item">
+                            <a href="{{ route('admin.pairwise.criteria') }}" class="text-white">
+                                <i class="fas fa-layer-group me-1"></i>Kriteria
+                            </a>
+                        </li>
+                        <li class="breadcrumb-item active text-white" aria-current="page">
+                            <i class="fas fa-list me-1"></i>
+                            Sub Kriteria: {{ $criterion->code }} - {{ $criterion->name }}
+                        </li>
+                    </ol>
+                </nav>
             </div>
         </div>
+    </div>
+</div>
 
+<div class="row">
+    <div class="col-12">
         {{-- Consistency Indicator --}}
         @php
             $subCriteriaWeight = \App\Models\CriteriaWeight::where('level', 'subcriteria')
@@ -114,7 +113,10 @@
         <div class="card">
             <div class="card-header">
                 <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Matriks Perbandingan Berpasangan Sub Kriteria</h5>
+                    <div>
+                        <h5 class="mb-1">Matriks Perbandingan Berpasangan Sub Kriteria</h5>
+                        <small class="text-muted">Kriteria: {{ $criterion->code }} - {{ $criterion->name }}</small>
+                    </div>
                     <span class="badge bg-info">{{ $subCriterias->count() }} Sub Kriteria</span>
                 </div>
             </div>
@@ -125,7 +127,7 @@
                         
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle me-2"></i>
-                            <strong>Petunjuk:</strong> Berikan nilai perbandingan untuk setiap pasangan sub kriteria dalam kriteria {{ $criterion->code }}.
+                            <strong>Petunjuk:</strong> Berikan nilai perbandingan untuk setiap pasangan sub kriteria dalam kriteria <strong>{{ $criterion->name }}</strong>.
                             Skala: 1 = Sama penting, 3 = Sedikit lebih penting, 5 = Lebih penting, 7 = Sangat penting, 9 = Mutlak lebih penting.
                         </div>
                         
@@ -145,7 +147,7 @@
                                         <tr>
                                             <th class="table-dark">
                                                 {{ $subCriteriaA->code }}<br>
-                                                <small>{{ $subCriteriaA->name }}</small>
+                                                <small>{{ Str::limit($subCriteriaA->name, 30) }}</small>
                                             </th>
                                             @foreach($subCriterias as $j => $subCriteriaB)
                                                 <td class="{{ $i == $j ? 'diagonal-cell' : 'matrix-cell' }}">
@@ -228,12 +230,18 @@
                             @endforeach
                         </div>
                         
-                        {{-- Sub-sub-criteria navigation if available --}}
-                        @if($subCriterias->whereHas('subSubCriterias')->count() > 0)
+                        {{-- Sub-Sub-Criteria navigation if available --}}
+                        @php
+                            $subCriteriasWithSubSubCriteria = $subCriterias->filter(function($subCriteria) {
+                                return $subCriteria->subSubCriterias && $subCriteria->subSubCriterias->count() > 0;
+                            });
+                        @endphp
+                        
+                        @if($subCriteriasWithSubSubCriteria->count() > 0)
                             <hr>
                             <h6>Lanjut ke Sub-Sub Kriteria:</h6>
                             <div class="row">
-                                @foreach($subCriterias->whereHas('subSubCriterias') as $subCriteria)
+                                @foreach($subCriteriasWithSubSubCriteria as $subCriteria)
                                     <div class="col-md-4 mb-2">
                                         <a href="{{ route('admin.pairwise.subsubcriteria', $subCriteria->id) }}" 
                                            class="btn btn-outline-success btn-sm w-100">
@@ -250,7 +258,7 @@
                         <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
                         <h5>Sub Kriteria Tidak Cukup</h5>
                         <p class="text-muted">Minimal 2 sub kriteria diperlukan untuk melakukan perbandingan berpasangan.</p>
-                        <a href="{{ route('admin.subcriteria.create') }}?criteria_id={{ $criterion->id }}" class="btn btn-primary">
+                        <a href="{{ route('admin.criteria.subcriteria.create', $criterion->id) }}" class="btn btn-primary">
                             <i class="fas fa-plus me-2"></i>Tambah Sub Kriteria
                         </a>
                     </div>
@@ -345,26 +353,28 @@
             </div>
         </div>
         
+        {{-- Navigation Back --}}
         <div class="card mt-3">
             <div class="card-header">
                 <h6 class="mb-0">Navigasi</h6>
             </div>
             <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{{ route('admin.pairwise.criteria') }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-arrow-left me-1"></i> Kembali ke Kriteria
-                    </a>
-                    @if($criterion->subCriterias->whereHas('subSubCriterias')->count() > 0)
-                        <hr class="my-2">
-                        <small class="text-muted">Sub-Sub Kriteria:</small>
-                        @foreach($criterion->subCriterias->whereHas('subSubCriterias') as $subCrit)
-                            <a href="{{ route('admin.pairwise.subsubcriteria', $subCrit->id) }}" 
-                               class="btn btn-outline-success btn-sm">
-                                {{ $subCrit->code }}
+                <a href="{{ route('admin.pairwise.criteria') }}" class="btn btn-outline-secondary btn-sm w-100 mb-2">
+                    <i class="fas fa-arrow-left me-1"></i>Kembali ke Kriteria
+                </a>
+                
+                @if($criterion->subCriterias->count() > 0)
+                    <div class="dropdown-divider"></div>
+                    <small class="text-muted d-block mb-2">Sub Kriteria Lainnya:</small>
+                    @foreach($criterion->subCriterias as $otherSubCriteria)
+                        @if($otherSubCriteria->subSubCriterias->count() >= 2)
+                            <a href="{{ route('admin.pairwise.subsubcriteria', $otherSubCriteria->id) }}" 
+                               class="btn btn-outline-info btn-sm w-100 mb-1">
+                                <i class="fas fa-list me-1"></i>{{ $otherSubCriteria->code }}
                             </a>
-                        @endforeach
-                    @endif
-                </div>
+                        @endif
+                    @endforeach
+                @endif
             </div>
         </div>
     </div>
