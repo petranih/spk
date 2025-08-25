@@ -11,14 +11,14 @@ class ApplicationValue extends Model
 
     protected $fillable = [
         'application_id',
-        'criteria_type',
+        'criteria_type', // 'criteria', 'subcriteria', 'subsubcriteria'
         'criteria_id',
         'value',
-        'score',
+        'score'
     ];
 
     protected $casts = [
-        'score' => 'decimal:8',
+        'score' => 'decimal:10'
     ];
 
     public function application()
@@ -26,15 +26,44 @@ class ApplicationValue extends Model
         return $this->belongsTo(Application::class);
     }
 
-    public function getValueAttribute($value)
+    /**
+     * Relasi polymorphic ke kriteria yang sesuai
+     */
+    public function criteria()
     {
-        // Try to decode as JSON, return as string if not JSON
-        $decoded = json_decode($value, true);
-        return $decoded !== null ? $decoded : $value;
+        switch ($this->criteria_type) {
+            case 'criteria':
+                return $this->belongsTo(Criteria::class, 'criteria_id');
+            case 'subcriteria':
+                return $this->belongsTo(SubCriteria::class, 'criteria_id');
+            case 'subsubcriteria':
+                return $this->belongsTo(SubSubCriteria::class, 'criteria_id');
+            default:
+                return null;
+        }
     }
 
-    public function setValueAttribute($value)
+    /**
+     * Scope untuk filter berdasarkan tipe kriteria
+     */
+    public function scopeForCriteriaType($query, $type)
     {
-        $this->attributes['value'] = is_array($value) ? json_encode($value) : $value;
+        return $query->where('criteria_type', $type);
+    }
+
+    /**
+     * Scope untuk filter berdasarkan aplikasi
+     */
+    public function scopeForApplication($query, $applicationId)
+    {
+        return $query->where('application_id', $applicationId);
+    }
+
+    /**
+     * Get nilai yang sudah diformat
+     */
+    public function getFormattedValueAttribute()
+    {
+        return ucfirst(str_replace('_', ' ', $this->value));
     }
 }

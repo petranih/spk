@@ -1,5 +1,5 @@
 <?php
-// routes/web.php - Updated version
+// routes/web.php - Updated version dengan scoring routes
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\MultiAuthController;
@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\CriteriaController;
 use App\Http\Controllers\Admin\SubCriteriaController;
 use App\Http\Controllers\Admin\SubSubCriteriaController;
 use App\Http\Controllers\Admin\PairwiseComparisonController;
+use App\Http\Controllers\Admin\ApplicationScoringController;
 use App\Http\Controllers\Admin\PeriodController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\ReportController;
@@ -59,7 +60,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Pairwise Comparison Routes - Updated with index and proper navigation
     Route::prefix('pairwise')->name('pairwise.')->group(function () {
         
-        // Main Index/Navigation Page - NEW
+        // Main Index/Navigation Page
         Route::get('/', [PairwiseComparisonController::class, 'index'])
             ->name('index');
         
@@ -69,30 +70,57 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::post('/criteria', [PairwiseComparisonController::class, 'storeCriteria'])
             ->name('criteria.store');
         
-        // Sub-Criteria Level - Updated routes to match controller
+        // Sub-Criteria Level
         Route::get('/subcriteria/{criterion}', [PairwiseComparisonController::class, 'subCriteria'])
             ->name('subcriteria');
         Route::post('/subcriteria/{criterion}', [PairwiseComparisonController::class, 'storeSubCriteria'])
             ->name('subcriteria.store');
         
-        // Sub-Sub-Criteria Level - Updated routes to match controller
+        // Sub-Sub-Criteria Level
         Route::get('/subsubcriteria/{subcriterion}', [PairwiseComparisonController::class, 'subSubCriteria'])
             ->name('subsubcriteria');
         Route::post('/subsubcriteria/{subcriterion}', [PairwiseComparisonController::class, 'storeSubSubCriteria'])
             ->name('subsubcriteria.store');
         
-        // Consistency Overview - New route
+        // Consistency Overview
         Route::get('/consistency-overview', [PairwiseComparisonController::class, 'consistencyOverview'])
             ->name('consistency.overview');
         
-        // Export and Utility Routes - New routes
+        // Export and Utility Routes
         Route::get('/export/{type}/{parentId?}', [PairwiseComparisonController::class, 'exportMatrix'])
             ->name('export.matrix');
         Route::post('/reset', [PairwiseComparisonController::class, 'resetComparisons'])
             ->name('reset');
     });
 
-    // AHP Calculation Routes - New section for manual calculations
+    // Application Scoring Routes - NEW SECTION
+    Route::prefix('scoring')->name('scoring.')->group(function () {
+        // Main scoring index page
+        Route::get('/', [ApplicationScoringController::class, 'index'])
+            ->name('index');
+        
+        // Show applications for specific period
+        Route::get('/period/{period}', [ApplicationScoringController::class, 'showApplications'])
+            ->name('applications');
+        
+        // Calculate single application score
+        Route::post('/calculate-single/{application}', [ApplicationScoringController::class, 'calculateSingleScore'])
+            ->name('calculate-single');
+        
+        // Calculate all applications in period
+        Route::post('/calculate-all/{period}', [ApplicationScoringController::class, 'calculateAllScores'])
+            ->name('calculate-all');
+        
+        // Show calculation detail for application
+        Route::get('/detail/{application}', [ApplicationScoringController::class, 'showCalculationDetail'])
+            ->name('detail');
+        
+        // Export results
+        Route::get('/export/{period}/{format}', [ApplicationScoringController::class, 'export'])
+            ->name('export');
+    });
+
+    // AHP Calculation Routes
     Route::prefix('ahp')->name('ahp.')->group(function () {
         Route::post('/calculate-criteria', [AHPController::class, 'calculateCriteriaWeights'])
             ->name('calculate.criteria');
@@ -100,10 +128,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
             ->name('calculate.subcriteria');
         Route::post('/calculate-subsubcriteria/{subCriteriaId}', [AHPController::class, 'calculateSubSubCriteriaWeights'])
             ->name('calculate.subsubcriteria');
-        Route::post('/calculate-all/{periodId}', [AHPController::class, 'calculateAllApplicationsScores'])
-            ->name('calculate.all');
-        Route::post('/calculate-application/{applicationId}', [AHPController::class, 'calculateApplicationScore'])
-            ->name('calculate.application');
     });
     
     // Period management
@@ -146,7 +170,7 @@ Route::middleware(['auth', 'validator'])->prefix('validator')->name('validator.'
     Route::post('/validation/{application}', [ValidationController::class, 'validate'])->name('validation.store');
 });
 
-// API Routes for AJAX calls - New section for dynamic updates
+// API Routes for AJAX calls
 Route::prefix('api/admin')->name('api.admin.')->middleware(['auth', 'admin'])->group(function () {
     // Consistency status check
     Route::get('/consistency-status/{level}/{parentId?}', function($level, $parentId = null) {
@@ -164,7 +188,55 @@ Route::prefix('api/admin')->name('api.admin.')->middleware(['auth', 'admin'])->g
     
     // Weights summary
     Route::get('/weights-summary', function() {
-        return response()->json(\App\Models\CriteriaWeight::getConsistencySummary());
+        $data = [
+            'criteria' => [
+                'consistent' => false,
+                'cr' => null,
+                'total_count' => 0
+            ],
+            'subcriteria' => [
+                'consistent_count' => 0,
+                'total_count' => 0,
+                'all_consistent' => false
+            ],
+            'subsubcriteria' => [
+                'consistent_count' => 0,
+                'total_count' => 0,
+                'all_consistent' => false
+            ]
+        ];
+
+        // Check criteria consistency
+        $criteriaWeight = \App\Models\CriteriaWeight::where('level', 'criteria')
+            ->where('parent_id', null)
+            ->first();
+        
+        if ($criteriaWeight) {
+            $data['criteria']['consistent'] = $criteriaWeight->is_consistent;
+            $data['criteria']['cr'] = $criteriaWeight->cr;
+        }
+
+        // Check subcriteria consistency
+        $subCriteriaWeights = \App\Models\CriteriaWeight::where('level', 'subcriteria')
+            ->whereNotNull('parent_id')
+            ->get();
+        
+        $data['subcriteria']['total_count'] = $subCriteriaWeights->count();
+        $data['subcriteria']['consistent_count'] = $subCriteriaWeights->where('is_consistent', true)->count();
+        $data['subcriteria']['all_consistent'] = $data['subcriteria']['total_count'] > 0 && 
+            $data['subcriteria']['consistent_count'] == $data['subcriteria']['total_count'];
+
+        // Check subsubcriteria consistency
+        $subSubCriteriaWeights = \App\Models\CriteriaWeight::where('level', 'subsubcriteria')
+            ->whereNotNull('parent_id')
+            ->get();
+        
+        $data['subsubcriteria']['total_count'] = $subSubCriteriaWeights->count();
+        $data['subsubcriteria']['consistent_count'] = $subSubCriteriaWeights->where('is_consistent', true)->count();
+        $data['subsubcriteria']['all_consistent'] = $data['subsubcriteria']['total_count'] > 0 && 
+            $data['subsubcriteria']['consistent_count'] == $data['subsubcriteria']['total_count'];
+
+        return response()->json($data);
     })->name('weights.summary');
     
     // Get criteria with subcriteria for dropdown
