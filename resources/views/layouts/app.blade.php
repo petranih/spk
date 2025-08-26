@@ -190,6 +190,10 @@
                                         </a></li>
                                     </ul>
                                 </div>
+                                <a href="{{ route('admin.scoring.index') }}" class="nav-link {{ request()->routeIs('admin.scoring.*') ? 'active' : '' }}">
+                        <i class="far fa-circle nav-icon"></i>
+                        <p>Perhitungan Skor</p>
+                    </a>
                                 
                                 <a class="nav-link {{ request()->routeIs('admin.period*') ? 'active' : '' }}" href="{{ route('admin.period.index') }}">
                                     <i class="fas fa-calendar me-2"></i> Periode Beasiswa
