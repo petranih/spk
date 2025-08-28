@@ -1,4 +1,4 @@
-{{-- resources/views/student/dashboard.blade.php --}}
+{{-- resources/views/student/dashboard.blade.php - Updated --}}
 @extends('layouts.app')
 
 @section('title', 'Dashboard Siswa')
@@ -14,18 +14,36 @@
                         <i class="fas fa-calendar-check me-2"></i>
                         <strong>{{ $activePeriod->name }}</strong> sedang berlangsung
                         <br><small>{{ $activePeriod->start_date->format('d/m/Y') }} - {{ $activePeriod->end_date->format('d/m/Y') }}</small>
+                        @if($activePeriod->description)
+                            <br><small class="text-muted">{{ $activePeriod->description }}</small>
+                        @endif
                     </div>
                     @if(!$currentApplication)
-                        <a href="{{ route('student.application.create') }}" class="btn btn-primary">
-                            <i class="fas fa-plus me-2"></i>Daftar Sekarang
-                        </a>
+                        @php
+                            $now = now();
+                            $isOngoing = $now->between($activePeriod->start_date, $activePeriod->end_date);
+                        @endphp
+                        @if($isOngoing)
+                            <a href="{{ route('student.application.create') }}" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Daftar Sekarang
+                            </a>
+                        @elseif($now->lt($activePeriod->start_date))
+                            <span class="badge bg-info fs-6">Belum Dimulai</span>
+                        @else
+                            <span class="badge bg-danger fs-6">Sudah Berakhir</span>
+                        @endif
                     @endif
                 </div>
             </div>
         @else
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>
-                Saat ini tidak ada periode pendaftaran beasiswa yang aktif.
+            <div class="alert alert-warning">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                    <div>
+                        <h5 class="mb-1">Tidak Ada Periode Aktif</h5>
+                        <p class="mb-0">Saat ini tidak ada periode pendaftaran beasiswa yang aktif. Silakan tunggu pengumuman periode berikutnya.</p>
+                    </div>
+                </div>
             </div>
         @endif
     </div>
@@ -48,6 +66,7 @@
                                 <tr>
                                     <th>No. Aplikasi</th>
                                     <th>Periode</th>
+                                    <th>Tanggal Daftar</th>
                                     <th>Status</th>
                                     <th>Skor</th>
                                     <th>Rank</th>
@@ -57,8 +76,14 @@
                             <tbody>
                                 @foreach($applications as $app)
                                 <tr>
-                                    <td>{{ $app->application_number }}</td>
-                                    <td>{{ $app->period->name }}</td>
+                                    <td>
+                                        <code>{{ $app->application_number ?? 'APP-' . $app->id }}</code>
+                                    </td>
+                                    <td>
+                                        <strong>{{ $app->period->name }}</strong>
+                                        <br><small class="text-muted">{{ $app->period->start_date->format('d/m/Y') }} - {{ $app->period->end_date->format('d/m/Y') }}</small>
+                                    </td>
+                                    <td>{{ $app->created_at->format('d/m/Y H:i') }}</td>
                                     <td>
                                         @if($app->status == 'draft')
                                             <span class="badge bg-secondary">Draft</span>
@@ -68,11 +93,13 @@
                                             <span class="badge bg-success">Tervalidasi</span>
                                         @elseif($app->status == 'rejected')
                                             <span class="badge bg-danger">Ditolak</span>
+                                        @else
+                                            <span class="badge bg-secondary">{{ ucfirst($app->status) }}</span>
                                         @endif
                                     </td>
                                     <td>
                                         @if($app->final_score)
-                                            {{ number_format($app->final_score, 4) }}
+                                            <span class="badge bg-primary">{{ number_format($app->final_score, 4) }}</span>
                                         @else
                                             <span class="text-muted">-</span>
                                         @endif
@@ -103,11 +130,18 @@
                 @else
                     <div class="text-center py-5">
                         <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">Anda belum memiliki aplikasi beasiswa</p>
+                        <h5 class="text-muted">Belum Ada Aplikasi</h5>
+                        <p class="text-muted">Anda belum pernah mengajukan aplikasi beasiswa</p>
                         @if($activePeriod)
-                            <a href="{{ route('student.application.create') }}" class="btn btn-primary">
-                                <i class="fas fa-plus me-2"></i>Buat Aplikasi Pertama
-                            </a>
+                            @php
+                                $now = now();
+                                $isOngoing = $now->between($activePeriod->start_date, $activePeriod->end_date);
+                            @endphp
+                            @if($isOngoing)
+                                <a href="{{ route('student.application.create') }}" class="btn btn-primary">
+                                    <i class="fas fa-plus me-2"></i>Buat Aplikasi Pertama
+                                </a>
+                            @endif
                         @endif
                     </div>
                 @endif
@@ -119,13 +153,16 @@
         @if($currentApplication)
             <div class="card">
                 <div class="card-header">
-                    <h6 class="mb-0">Aplikasi Saat Ini</h6>
+                    <h6 class="mb-0">
+                        <i class="fas fa-file-text me-2"></i>
+                        Aplikasi Saat Ini
+                    </h6>
                 </div>
                 <div class="card-body">
                     <table class="table table-sm">
                         <tr>
                             <td>No. Aplikasi</td>
-                            <td>: {{ $currentApplication->application_number }}</td>
+                            <td>: <code>{{ $currentApplication->application_number ?? 'APP-' . $currentApplication->id }}</code></td>
                         </tr>
                         <tr>
                             <td>Periode</td>
@@ -148,7 +185,7 @@
                         @if($currentApplication->final_score)
                             <tr>
                                 <td>Skor</td>
-                                <td>: {{ number_format($currentApplication->final_score, 4) }}</td>
+                                <td>: <span class="badge bg-primary">{{ number_format($currentApplication->final_score, 4) }}</span></td>
                             </tr>
                         @endif
                         @if($currentApplication->rank)
@@ -160,10 +197,25 @@
                     </table>
                     
                     @if($currentApplication->status == 'draft')
+                        <div class="alert alert-info">
+                            <small><i class="fas fa-info-circle me-1"></i>Aplikasi masih dalam tahap draft. Lengkapi semua data dan submit untuk validasi.</small>
+                        </div>
                         <div class="d-grid">
                             <a href="{{ route('student.application.edit', $currentApplication->id) }}" class="btn btn-primary">
                                 <i class="fas fa-edit me-2"></i>Lengkapi Data
                             </a>
+                        </div>
+                    @elseif($currentApplication->status == 'submitted')
+                        <div class="alert alert-warning">
+                            <small><i class="fas fa-clock me-1"></i>Aplikasi sedang menunggu validasi dari admin.</small>
+                        </div>
+                    @elseif($currentApplication->status == 'validated')
+                        <div class="alert alert-success">
+                            <small><i class="fas fa-check-circle me-1"></i>Aplikasi telah divalidasi dan siap untuk perhitungan skor.</small>
+                        </div>
+                    @elseif($currentApplication->status == 'rejected')
+                        <div class="alert alert-danger">
+                            <small><i class="fas fa-times-circle me-1"></i>Aplikasi ditolak. Lihat catatan dari validator.</small>
                         </div>
                     @endif
                     
@@ -176,31 +228,95 @@
             </div>
         @endif
         
-        <div class="card mt-3">
+        <div class="card {{ $currentApplication ? 'mt-3' : '' }}">
             <div class="card-header">
-                <h6 class="mb-0">Panduan</h6>
+                <h6 class="mb-0">
+                    <i class="fas fa-question-circle me-2"></i>
+                    Panduan Pendaftaran
+                </h6>
             </div>
             <div class="card-body">
                 <ol class="small">
                     <li>Tunggu periode pendaftaran aktif</li>
-                    <li>Buat aplikasi baru</li>
-                    <li>Lengkapi semua data dan dokumen</li>
+                    <li>Klik "Daftar Sekarang" atau "Buat Aplikasi"</li>
+                    <li>Isi data pribadi dengan lengkap</li>
+                    <li>Lengkapi data kriteria AHP</li>
+                    <li>Upload semua dokumen yang diperlukan</li>
+                    <li>Review semua data yang telah diisi</li>
                     <li>Submit aplikasi untuk validasi</li>
-                    <li>Tunggu hasil validasi</li>
-                    <li>Lihat ranking dan hasil akhir</li>
+                    <li>Tunggu hasil validasi dari admin</li>
+                    <li>Lihat hasil perhitungan dan ranking</li>
                 </ol>
-                
-                <hr>
-                
-                <h6>Dokumen Yang Diperlukan:</h6>
-                <ul class="small">
-                    <li>Kartu Keluarga (KK)</li>
-                    <li>KTP Orang Tua</li>
-                    <li>Slip Gaji / Surat Keterangan Penghasilan</li>
-                    <li>Surat Keterangan Tidak Mampu (SKTM)</li>
-                </ul>
             </div>
         </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-clipboard-list me-2"></i>
+                    Dokumen Yang Diperlukan
+                </h6>
+            </div>
+            <div class="card-body">
+                <ul class="small">
+                    <li><i class="fas fa-id-card text-primary me-1"></i> Kartu Keluarga (KK)</li>
+                    <li><i class="fas fa-id-card text-primary me-1"></i> KTP Orang Tua</li>
+                    <li><i class="fas fa-file-invoice-dollar text-success me-1"></i> Slip Gaji / Surat Keterangan Penghasilan</li>
+                    <li><i class="fas fa-file-alt text-info me-1"></i> Surat Keterangan Tidak Mampu (SKTM)</li>
+                </ul>
+                
+                <div class="alert alert-light mt-2">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Pastikan semua dokumen dalam format PDF/JPG dan ukuran maksimal 2MB
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        @if($activePeriod)
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    Info Periode Aktif
+                </h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <td>Nama</td>
+                        <td>: {{ $activePeriod->name }}</td>
+                    </tr>
+                    <tr>
+                        <td>Mulai</td>
+                        <td>: {{ $activePeriod->start_date->format('d/m/Y') }}</td>
+                    </tr>
+                    <tr>
+                        <td>Berakhir</td>
+                        <td>: {{ $activePeriod->end_date->format('d/m/Y') }}</td>
+                    </tr>
+                    <tr>
+                        <td>Sisa Waktu</td>
+                        <td>: 
+                            @php
+                                $now = now();
+                                if($now->lt($activePeriod->start_date)) {
+                                    $days = $now->diffInDays($activePeriod->start_date);
+                                    echo "<span class='badge bg-info'>{$days} hari lagi dimulai</span>";
+                                } elseif($now->between($activePeriod->start_date, $activePeriod->end_date)) {
+                                    $days = $now->diffInDays($activePeriod->end_date);
+                                    echo "<span class='badge bg-success'>{$days} hari lagi berakhir</span>";
+                                } else {
+                                    echo "<span class='badge bg-danger'>Sudah berakhir</span>";
+                                }
+                            @endphp
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        @endif
     </div>
 </div>
 @endsection
