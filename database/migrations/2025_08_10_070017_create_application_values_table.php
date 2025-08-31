@@ -23,7 +23,10 @@ return new class extends Migration
             // Index untuk optimasi query
             $table->index(['application_id', 'criteria_type']);
             $table->index(['criteria_type', 'criteria_id']);
-            $table->unique(['application_id', 'criteria_type', 'criteria_id']);
+            $table->unique(
+    ['application_id', 'criteria_type', 'criteria_id'],
+    'appval_appid_type_criteria_unique' // kasih nama pendek manual
+);
         });
     }
 

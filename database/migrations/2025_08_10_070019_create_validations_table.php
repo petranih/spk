@@ -6,23 +6,42 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
-        Schema::create('rankings', function (Blueprint $table) {
+        Schema::create('validations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('period_id')->constrained()->onDelete('cascade');
-            $table->foreignId('application_id')->constrained()->onDelete('cascade');
-            $table->decimal('total_score', 10, 8);
-            $table->integer('rank');
-            $table->json('criteria_scores')->nullable();
+
+            // Foreign key ke applications
+            $table->foreignId('application_id')
+                ->constrained('applications')
+                ->onDelete('cascade');
+
+            // Foreign key ke users (sebagai validator)
+            $table->foreignId('validator_id')
+                ->constrained('users')
+                ->onDelete('cascade');
+
+            // Status validasi (pending, approved, rejected)
+            $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
+
+            // Catatan opsional
+            $table->text('notes')->nullable();
+
+            // Waktu validasi
+            $table->timestamp('validated_at')->nullable();
+
             $table->timestamps();
-            
-            $table->unique(['period_id', 'application_id']);
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
-        Schema::dropIfExists('rankings');
+        Schema::dropIfExists('validations');
     }
 };

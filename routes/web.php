@@ -164,10 +164,11 @@ Route::middleware(['auth', 'student'])->prefix('student')->name('student.')->gro
 Route::middleware(['auth', 'validator'])->prefix('validator')->name('validator.')->group(function () {
     Route::get('/dashboard', [ValidatorController::class, 'dashboard'])->name('dashboard');
     
-    // Validation
+    // Validation - PERBAIKAN NAMA METHOD
     Route::get('/validation', [ValidationController::class, 'index'])->name('validation.index');
     Route::get('/validation/{application}', [ValidationController::class, 'show'])->name('validation.show');
-    Route::post('/validation/{application}', [ValidationController::class, 'validate'])->name('validation.store');
+    // Ubah dari validate() ke processValidation()
+    Route::post('/validation/{application}', [ValidationController::class, 'processValidation'])->name('validation.store');
 });
 
 // API Routes for AJAX calls
