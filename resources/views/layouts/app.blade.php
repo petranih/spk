@@ -52,23 +52,87 @@
             color: #667eea !important;
         }
         
-        /* Dropdown menu styling */
+        /* Dropdown menu styling - FIXED */
         .sidebar .dropdown-menu {
-            background: rgba(255,255,255,0.1);
-            border: none;
+            background: rgba(255,255,255,0.95); /* Lebih opaque untuk kontras yang lebih baik */
+            border: 1px solid rgba(255,255,255,0.2);
             backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            min-width: 250px; /* Lebar minimum untuk teks yang panjang */
         }
+        
         .sidebar .dropdown-item {
-            color: rgba(255,255,255,0.8);
+            color: #495057; /* Warna gelap untuk kontras yang baik */
+            padding: 8px 16px;
             transition: all 0.3s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .sidebar .dropdown-item:hover {
-            background: rgba(255,255,255,0.1);
-            color: white;
+        
+        .sidebar .dropdown-item:hover,
+        .sidebar .dropdown-item:focus {
+            background: rgba(102, 126, 234, 0.1); /* Background hover dengan warna primary */
+            color: #667eea; /* Warna primary untuk hover */
         }
+        
+        .sidebar .dropdown-item.active {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            font-weight: 500;
+        }
+        
+        /* Styling untuk dropdown header */
+        .sidebar .dropdown-header {
+            color: #6c757d;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+            padding: 8px 16px 4px 16px;
+        }
+        
+        /* Styling untuk dropdown divider */
+        .sidebar .dropdown-divider {
+            border-color: rgba(108, 117, 125, 0.2);
+            margin: 4px 0;
+        }
+        
+        /* Perbaikan untuk dropdown toggle */
+        .sidebar .dropdown-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+        }
+        
         .sidebar .dropdown-toggle::after {
-            float: right;
-            margin-top: 8px;
+            margin-left: auto;
+            margin-top: 0;
+        }
+        
+        /* Untuk mobile responsiveness */
+        @media (max-width: 768px) {
+            .sidebar .dropdown-menu {
+                position: static !important;
+                float: none !important;
+                width: 100% !important;
+                margin-top: 0 !important;
+                background: rgba(255,255,255,0.1);
+                border: none;
+                box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+            }
+            
+            .sidebar .dropdown-item {
+                color: rgba(255,255,255,0.9);
+                padding-left: 2rem;
+            }
+            
+            .sidebar .dropdown-item:hover {
+                background: rgba(255,255,255,0.1);
+                color: white;
+            }
         }
     </style>
     

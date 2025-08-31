@@ -1,5 +1,5 @@
 <?php
-// routes/web.php - Updated version dengan scoring routes
+// routes/web.php - Updated version dengan perbaikan upload
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\MultiAuthController;
@@ -93,41 +93,21 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
             ->name('reset');
     });
 
-    // Application Scoring Routes - NEW SECTION
+    // Application Scoring Routes
     Route::prefix('scoring')->name('scoring.')->group(function () {
-        // Main scoring index page
-        Route::get('/', [ApplicationScoringController::class, 'index'])
-            ->name('index');
-        
-        // Show applications for specific period
-        Route::get('/period/{period}', [ApplicationScoringController::class, 'showApplications'])
-            ->name('applications');
-        
-        // Calculate single application score
-        Route::post('/calculate-single/{application}', [ApplicationScoringController::class, 'calculateSingleScore'])
-            ->name('calculate-single');
-        
-        // Calculate all applications in period
-        Route::post('/calculate-all/{period}', [ApplicationScoringController::class, 'calculateAllScores'])
-            ->name('calculate-all');
-        
-        // Show calculation detail for application
-        Route::get('/detail/{application}', [ApplicationScoringController::class, 'showCalculationDetail'])
-            ->name('detail');
-        
-        // Export results
-        Route::get('/export/{period}/{format}', [ApplicationScoringController::class, 'export'])
-            ->name('export');
+        Route::get('/', [ApplicationScoringController::class, 'index'])->name('index');
+        Route::get('/period/{period}', [ApplicationScoringController::class, 'showApplications'])->name('applications');
+        Route::post('/calculate-single/{application}', [ApplicationScoringController::class, 'calculateSingleScore'])->name('calculate-single');
+        Route::post('/calculate-all/{period}', [ApplicationScoringController::class, 'calculateAllScores'])->name('calculate-all');
+        Route::get('/detail/{application}', [ApplicationScoringController::class, 'showCalculationDetail'])->name('detail');
+        Route::get('/export/{period}/{format}', [ApplicationScoringController::class, 'export'])->name('export');
     });
 
     // AHP Calculation Routes
     Route::prefix('ahp')->name('ahp.')->group(function () {
-        Route::post('/calculate-criteria', [AHPController::class, 'calculateCriteriaWeights'])
-            ->name('calculate.criteria');
-        Route::post('/calculate-subcriteria/{criteriaId}', [AHPController::class, 'calculateSubCriteriaWeights'])
-            ->name('calculate.subcriteria');
-        Route::post('/calculate-subsubcriteria/{subCriteriaId}', [AHPController::class, 'calculateSubSubCriteriaWeights'])
-            ->name('calculate.subsubcriteria');
+        Route::post('/calculate-criteria', [AHPController::class, 'calculateCriteriaWeights'])->name('calculate.criteria');
+        Route::post('/calculate-subcriteria/{criteriaId}', [AHPController::class, 'calculateSubCriteriaWeights'])->name('calculate.subcriteria');
+        Route::post('/calculate-subsubcriteria/{subCriteriaId}', [AHPController::class, 'calculateSubSubCriteriaWeights'])->name('calculate.subsubcriteria');
     });
     
     // Period management
@@ -155,7 +135,7 @@ Route::middleware(['auth', 'student'])->prefix('student')->name('student.')->gro
     Route::put('/application/{application}', [ApplicationController::class, 'update'])->name('application.update');
     Route::post('/application/{application}/submit', [ApplicationController::class, 'submit'])->name('application.submit');
     
-    // Document upload
+    // Document upload - DIPERBAIKI UNTUK SUPPORT AJAX
     Route::post('/application/{application}/upload', [ApplicationController::class, 'uploadDocument'])->name('application.upload');
     Route::delete('/application/{application}/document/{document}', [ApplicationController::class, 'deleteDocument'])->name('application.document.delete');
 });
@@ -164,10 +144,9 @@ Route::middleware(['auth', 'student'])->prefix('student')->name('student.')->gro
 Route::middleware(['auth', 'validator'])->prefix('validator')->name('validator.')->group(function () {
     Route::get('/dashboard', [ValidatorController::class, 'dashboard'])->name('dashboard');
     
-    // Validation - PERBAIKAN NAMA METHOD
+    // Validation
     Route::get('/validation', [ValidationController::class, 'index'])->name('validation.index');
     Route::get('/validation/{application}', [ValidationController::class, 'show'])->name('validation.show');
-    // Ubah dari validate() ke processValidation()
     Route::post('/validation/{application}', [ValidationController::class, 'processValidation'])->name('validation.store');
 });
 

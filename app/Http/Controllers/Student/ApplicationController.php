@@ -146,29 +146,41 @@ class ApplicationController extends Controller
                 'gender' => $request->gender,
                 'address' => $request->address,
                 'phone' => $request->phone,
-                'updated_at' => now(), // Explicit update timestamp
+                'updated_at' => now(),
             ]);
 
-            // Update criteria values jika ada
+            // Update criteria values - PERBAIKAN UNTUK HANDLE SUBCRITERIA DAN SUBSUBCRITERIA
             if ($request->has('criteria_values')) {
                 foreach ($request->criteria_values as $criteriaType => $values) {
                     foreach ($values as $criteriaId => $value) {
-                        // Validasi bahwa value yang dipilih valid
-                        if ($criteriaType === 'subsubcriteria') {
-                            $subSubCriteria = SubSubCriteria::find($value);
-                            if (!$subSubCriteria) {
-                                continue; // Skip invalid values
+                        if ($criteriaType === 'subcriteria') {
+                            // Handle direct subcriteria selection
+                            $subCriteria = SubCriteria::find($value);
+                            if ($subCriteria) {
+                                ApplicationValue::updateOrCreate([
+                                    'application_id' => $application->id,
+                                    'criteria_type' => $criteriaType,
+                                    'criteria_id' => $criteriaId,
+                                ], [
+                                    'value' => $value,
+                                    'score' => $subCriteria->score ?? 0,
+                                    'updated_at' => now(),
+                                ]);
                             }
-                            
-                            ApplicationValue::updateOrCreate([
-                                'application_id' => $application->id,
-                                'criteria_type' => $criteriaType,
-                                'criteria_id' => $criteriaId,
-                            ], [
-                                'value' => $value,
-                                'score' => $subSubCriteria->score ?? 0,
-                                'updated_at' => now(),
-                            ]);
+                        } elseif ($criteriaType === 'subsubcriteria') {
+                            // Handle subsubcriteria selection
+                            $subSubCriteria = SubSubCriteria::find($value);
+                            if ($subSubCriteria) {
+                                ApplicationValue::updateOrCreate([
+                                    'application_id' => $application->id,
+                                    'criteria_type' => $criteriaType,
+                                    'criteria_id' => $criteriaId,
+                                ], [
+                                    'value' => $value,
+                                    'score' => $subSubCriteria->score ?? 0,
+                                    'updated_at' => now(),
+                                ]);
+                            }
                         }
                     }
                 }
@@ -183,18 +195,17 @@ class ApplicationController extends Controller
     {
         // Security checks
         if ($application->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized access to application.');
+            return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
         }
 
         if ($application->status !== 'draft') {
-            return redirect()->route('student.application.edit', $application->id)
-                ->with('error', 'Aplikasi yang sudah disubmit tidak dapat diubah.');
+            return response()->json(['success' => false, 'message' => 'Aplikasi yang sudah disubmit tidak dapat diubah'], 422);
         }
 
         $request->validate([
             'document_type' => 'required|string|in:ktp,kk,slip_gaji,surat_keterangan',
             'document_name' => 'required|string|max:255',
-            'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:2048', // max 2MB
+            'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:2048',
         ]);
 
         try {
@@ -205,7 +216,9 @@ class ApplicationController extends Controller
 
             if ($existingDoc) {
                 // Delete old file
-                Storage::disk('public')->delete($existingDoc->file_path);
+                if (Storage::disk('public')->exists($existingDoc->file_path)) {
+                    Storage::disk('public')->delete($existingDoc->file_path);
+                }
                 $existingDoc->delete();
             }
 
@@ -221,7 +234,7 @@ class ApplicationController extends Controller
             $filename = time() . '_' . $request->document_type . '.' . $file->getClientOriginalExtension();
             $path = $file->storeAs($directory, $filename, 'public');
 
-            ApplicationDocument::create([
+            $document = ApplicationDocument::create([
                 'application_id' => $application->id,
                 'document_type' => $request->document_type,
                 'document_name' => $request->document_name,
@@ -231,24 +244,52 @@ class ApplicationController extends Controller
                 'original_name' => $file->getClientOriginalName(),
             ]);
 
+            // Jika request AJAX, return JSON response
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Dokumen berhasil diupload',
+                    'document' => $document,
+                    'document_type_display' => $this->getDocumentTypeDisplay($document->document_type),
+                    'file_size_display' => number_format($document->file_size / 1024, 1) . ' KB',
+                    'created_at_display' => $document->created_at->format('d/m/Y H:i'),
+                    'view_url' => Storage::url($document->file_path),
+                    'delete_url' => route('student.application.document.delete', [$application->id, $document->id])
+                ]);
+            }
+
             return redirect()->route('student.application.edit', $application->id)
                 ->with('success', 'Dokumen berhasil diupload');
                 
         } catch (\Exception $e) {
             \Log::error('Document upload failed: ' . $e->getMessage());
+            
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal mengupload dokumen. Silakan coba lagi.'
+                ], 500);
+            }
+            
             return redirect()->route('student.application.edit', $application->id)
                 ->with('error', 'Gagal mengupload dokumen. Silakan coba lagi.');
         }
     }
 
-    public function deleteDocument(Application $application, ApplicationDocument $document)
+    public function deleteDocument(Request $request, Application $application, ApplicationDocument $document)
     {
         // Security checks
         if ($application->user_id !== Auth::id() || $document->application_id !== $application->id) {
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+            }
             abort(403, 'Unauthorized access.');
         }
 
         if ($application->status !== 'draft') {
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Aplikasi yang sudah disubmit tidak dapat diubah'], 422);
+            }
             return redirect()->route('student.application.edit', $application->id)
                 ->with('error', 'Aplikasi yang sudah disubmit tidak dapat diubah.');
         }
@@ -262,11 +303,20 @@ class ApplicationController extends Controller
             // Delete record from database
             $document->delete();
 
+            if ($request->ajax()) {
+                return response()->json(['success' => true, 'message' => 'Dokumen berhasil dihapus']);
+            }
+
             return redirect()->route('student.application.edit', $application->id)
                 ->with('success', 'Dokumen berhasil dihapus');
                 
         } catch (\Exception $e) {
             \Log::error('Document deletion failed: ' . $e->getMessage());
+            
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Gagal menghapus dokumen'], 500);
+            }
+            
             return redirect()->route('student.application.edit', $application->id)
                 ->with('error', 'Gagal menghapus dokumen. Silakan coba lagi.');
         }
@@ -348,12 +398,27 @@ class ApplicationController extends Controller
 
     private function calculateScore($criteriaType, $criteriaId, $value)
     {
-        // This method calculates score based on the selected sub-sub-criteria
-        if ($criteriaType === 'subsubcriteria') {
+        // This method calculates score based on the selected criteria type
+        if ($criteriaType === 'subcriteria') {
+            $subCriteria = SubCriteria::find($value);
+            return $subCriteria ? $subCriteria->score : 0;
+        } elseif ($criteriaType === 'subsubcriteria') {
             $subSubCriteria = SubSubCriteria::find($value);
             return $subSubCriteria ? $subSubCriteria->score : 0;
         }
 
         return 0;
+    }
+
+    private function getDocumentTypeDisplay($type)
+    {
+        $types = [
+            'ktp' => 'KTP Orang Tua',
+            'kk' => 'Kartu Keluarga',
+            'slip_gaji' => 'Slip Gaji',
+            'surat_keterangan' => 'Surat Keterangan'
+        ];
+
+        return $types[$type] ?? $type;
     }
 }
