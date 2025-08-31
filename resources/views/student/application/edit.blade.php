@@ -159,7 +159,7 @@
                 </div>
             </div>
             
-            <!-- Criteria Section - DIPERBAIKI UNTUK HANDLE SUBCRITERIA TANPA SUBSUBCRITERIA -->
+            <!-- PERBAIKAN: Criteria Section dengan logic yang diperbaiki -->
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">
@@ -175,65 +175,37 @@
                                 </h6>
                                 
                                 @if($criteria->subCriterias->count() > 0)
-                                    @foreach($criteria->subCriterias as $subCriteria)
-                                        <div class="subcriteria-section mb-3">
-                                            <label class="form-label fw-semibold">
-                                                {{ $subCriteria->code }} - {{ $subCriteria->name }}
-                                            </label>
-                                            
+                                    @php
+                                        // Cek apakah ada subcriteria yang memiliki subsubcriteria
+                                        $hasSubSubCriteria = $criteria->subCriterias->some(function($sub) {
+                                            return $sub->subSubCriterias->count() > 0;
+                                        });
+                                    @endphp
+                                    
+                                    @if($hasSubSubCriteria)
+                                        {{-- Ada Sub-Sub-Kriteria, tampilkan per subcriteria --}}
+                                        @foreach($criteria->subCriterias as $subCriteria)
                                             @if($subCriteria->subSubCriterias->count() > 0)
-                                                {{-- Ada Sub-Sub-Kriteria --}}
-                                                <div class="row">
-                                                    @foreach($subCriteria->subSubCriterias->chunk(2) as $chunk)
-                                                        @foreach($chunk as $subSubCriteria)
-                                                            <div class="col-md-6">
-                                                                <div class="form-check mb-2">
-                                                                    <input class="form-check-input" 
-                                                                           type="radio" 
-                                                                           name="criteria_values[subsubcriteria][{{ $subCriteria->id }}]" 
-                                                                           id="subsubcriteria_{{ $subSubCriteria->id }}"
-                                                                           value="{{ $subSubCriteria->id }}"
-                                                                           {{ isset($existingValues['subsubcriteria_' . $subCriteria->id]) && $existingValues['subsubcriteria_' . $subCriteria->id]->value == $subSubCriteria->id ? 'checked' : '' }}>
-                                                                    <label class="form-check-label" for="subsubcriteria_{{ $subSubCriteria->id }}">
-                                                                        {{ $subSubCriteria->name }}
-                                                                        @if($subSubCriteria->score)
-                                                                            <small class="text-muted">(Skor: {{ $subSubCriteria->score }})</small>
-                                                                        @endif
-                                                                    </label>
-                                                                </div>
-                                                            </div>
-                                                        @endforeach
-                                                    @endforeach
-                                                </div>
-                                            @else
-                                                {{-- Tidak Ada Sub-Sub-Kriteria, langsung pilih Sub-Kriteria --}}
-                                                <div class="alert alert-info">
-                                                    <small><i class="fas fa-info-circle me-1"></i>
-                                                        Kriteria ini tidak memiliki sub-sub-kriteria. Pilihan akan ditentukan berdasarkan sub-kriteria.
-                                                    </small>
-                                                </div>
-                                                
-                                                {{-- Get other subcriteria for this criteria to make selection --}}
-                                                @php
-                                                    $otherSubCriterias = $criteria->subCriterias;
-                                                @endphp
-                                                
-                                                @if($otherSubCriterias->count() > 1)
+                                                <div class="subcriteria-section mb-3">
+                                                    <label class="form-label fw-semibold">
+                                                        {{ $subCriteria->code }} - {{ $subCriteria->name }}
+                                                    </label>
+                                                    
                                                     <div class="row">
-                                                        @foreach($otherSubCriterias->chunk(2) as $chunk)
-                                                            @foreach($chunk as $subCrit)
+                                                        @foreach($subCriteria->subSubCriterias->chunk(2) as $chunk)
+                                                            @foreach($chunk as $subSubCriteria)
                                                                 <div class="col-md-6">
                                                                     <div class="form-check mb-2">
                                                                         <input class="form-check-input" 
                                                                                type="radio" 
-                                                                               name="criteria_values[subcriteria][{{ $criteria->id }}]" 
-                                                                               id="subcriteria_{{ $subCrit->id }}"
-                                                                               value="{{ $subCrit->id }}"
-                                                                               {{ isset($existingValues['subcriteria_' . $criteria->id]) && $existingValues['subcriteria_' . $criteria->id]->value == $subCrit->id ? 'checked' : '' }}>
-                                                                        <label class="form-check-label" for="subcriteria_{{ $subCrit->id }}">
-                                                                            {{ $subCrit->name }}
-                                                                            @if($subCrit->score)
-                                                                                <small class="text-muted">(Skor: {{ $subCrit->score }})</small>
+                                                                               name="criteria_values[subsubcriteria][{{ $subCriteria->id }}]" 
+                                                                               id="subsubcriteria_{{ $subSubCriteria->id }}"
+                                                                               value="{{ $subSubCriteria->id }}"
+                                                                               {{ isset($existingValues['subsubcriteria_' . $subCriteria->id]) && $existingValues['subsubcriteria_' . $subCriteria->id]->value == $subSubCriteria->id ? 'checked' : '' }}>
+                                                                        <label class="form-check-label" for="subsubcriteria_{{ $subSubCriteria->id }}">
+                                                                            {{ $subSubCriteria->name }}
+                                                                            @if($subSubCriteria->score)
+                                                                                <small class="text-muted">(Skor: {{ $subSubCriteria->score }})</small>
                                                                             @endif
                                                                         </label>
                                                                     </div>
@@ -241,24 +213,41 @@
                                                             @endforeach
                                                         @endforeach
                                                     </div>
-                                                @else
-                                                    {{-- Jika hanya ada 1 subcriteria, otomatis terpilih --}}
-                                                    <input type="hidden" 
-                                                           name="criteria_values[subcriteria][{{ $criteria->id }}]" 
-                                                           value="{{ $subCriteria->id }}">
-                                                    <div class="alert alert-success">
-                                                        <small><i class="fas fa-check-circle me-1"></i>
-                                                            Otomatis terpilih: {{ $subCriteria->name }}
-                                                            @if($subCriteria->score)
-                                                                (Skor: {{ $subCriteria->score }})
-                                                            @endif
-                                                        </small>
-                                                    </div>
-                                                @endif
+                                                </div>
+                                                @if(!$loop->last)<hr>@endif
                                             @endif
+                                        @endforeach
+                                    @else
+                                        {{-- PERBAIKAN: Tidak ada subsubcriteria, langsung pilih dari subcriteria --}}
+                                        <div class="subcriteria-section">
+                                            <label class="form-label fw-semibold mb-3">
+                                                Pilih {{ $criteria->name }}:
+                                            </label>
+                                            
+                                            <div class="row">
+                                                @foreach($criteria->subCriterias->chunk(2) as $chunk)
+                                                    @foreach($chunk as $subCriteria)
+                                                        <div class="col-md-6">
+                                                            <div class="form-check mb-2">
+                                                                <input class="form-check-input" 
+                                                                       type="radio" 
+                                                                       name="criteria_values[subcriteria][{{ $criteria->id }}]" 
+                                                                       id="subcriteria_{{ $subCriteria->id }}"
+                                                                       value="{{ $subCriteria->id }}"
+                                                                       {{ isset($existingValues['subcriteria_' . $criteria->id]) && $existingValues['subcriteria_' . $criteria->id]->value == $subCriteria->id ? 'checked' : '' }}>
+                                                                <label class="form-check-label" for="subcriteria_{{ $subCriteria->id }}">
+                                                                    {{ $subCriteria->name }}
+                                                                    @if($subCriteria->score)
+                                                                        <small class="text-muted">(Skor: {{ $subCriteria->score }})</small>
+                                                                    @endif
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    @endforeach
+                                                @endforeach
+                                            </div>
                                         </div>
-                                        @if(!$loop->last)<hr>@endif
-                                    @endforeach
+                                    @endif
                                 @else
                                     <div class="alert alert-warning">
                                         <small>Belum ada sub-kriteria untuk kriteria ini</small>
@@ -275,7 +264,7 @@
                 </div>
             </div>
             
-            <!-- Document Upload Section - DIPERBAIKI DENGAN AJAX -->
+            <!-- PERBAIKAN: Document Upload Section dengan form terpisah -->
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">
@@ -283,10 +272,9 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <!-- Upload Form dengan AJAX -->
+                    <!-- Upload Form dengan AJAX - FORM TERPISAH -->
                     <div class="border p-3 rounded bg-light mb-3">
-                        <form id="uploadForm" enctype="multipart/form-data">
-                            @csrf
+                        <div id="uploadForm">
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="mb-3">
@@ -314,17 +302,17 @@
                                     </div>
                                 </div>
                             </div>
-                            <button type="submit" class="btn btn-sm btn-success" id="uploadBtn">
+                            <button type="button" class="btn btn-sm btn-success" id="uploadBtn">
                                 <i class="fas fa-upload me-1"></i>Upload
                             </button>
                             <div id="uploadProgress" class="mt-2" style="display: none;">
                                 <div class="progress">
                                     <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                                         role="progressbar" style="width: 0%"></div>
+                                         role="progressbar" style="width: 100%"></div>
                                 </div>
                                 <small class="text-muted">Uploading...</small>
                             </div>
-                        </form>
+                        </div>
                     </div>
                     
                     <!-- Uploaded Documents List -->
@@ -343,7 +331,7 @@
                                     </thead>
                                     <tbody id="documentsTableBody">
                                         @foreach($documents as $doc)
-                                        <tr id="doc_{{ $doc->id }}">
+                                        <tr id="doc_{{ $doc->id }}" data-doc-type="{{ $doc->document_type }}">
                                             <td>
                                                 @switch($doc->document_type)
                                                     @case('ktp')
@@ -429,7 +417,7 @@
                 </div>
             </div>
             
-            <!-- Progress Checklist - DIPERBAIKI UNTUK UPDATE REAL-TIME -->
+            <!-- Progress Checklist -->
             <div class="card mb-4">
                 <div class="card-header">
                     <h6 class="mb-0">Progress Checklist</h6>
@@ -481,17 +469,15 @@
                             
                             <div id="submitSection">
                                 @if($canSubmit)
-                                    <form action="{{ route('student.application.submit', $application->id) }}" method="POST" onsubmit="return confirm('Yakin ingin submit aplikasi? Setelah disubmit, Anda tidak dapat mengubah data lagi.')">
-                                        @csrf
-                                        <button type="submit" class="btn btn-success w-100" id="submitBtn">
-                                            <i class="fas fa-paper-plane me-2"></i>Submit Aplikasi
-                                        </button>
-                                    </form>
-                                @else
-                                    <button type="button" class="btn btn-success" disabled title="Lengkapi semua data dan dokumen terlebih dahulu" id="submitBtn">
+                                    <button type="button" class="btn btn-success w-100" id="submitApplicationBtn" 
+                                            data-url="{{ route('student.application.submit', $application->id) }}">
                                         <i class="fas fa-paper-plane me-2"></i>Submit Aplikasi
                                     </button>
-                                    <small class="text-muted mt-1" id="submitHelp">
+                                @else
+                                    <button type="button" class="btn btn-secondary w-100" disabled id="submitApplicationBtn">
+                                        <i class="fas fa-paper-plane me-2"></i>Submit Aplikasi
+                                    </button>
+                                    <small class="text-muted mt-1 d-block" id="submitHelp">
                                         Lengkapi semua data dan upload semua dokumen untuk dapat submit
                                     </small>
                                 @endif
@@ -609,11 +595,54 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // AJAX Upload Form
-    $('#uploadForm').on('submit', function(e) {
+    // PERBAIKAN: Auto-fill document name berdasarkan jenis dokumen
+    $('#document_type').on('change', function() {
+        const type = $(this).val();
+        const documentNames = {
+            'ktp': 'KTP Orang Tua',
+            'kk': 'Kartu Keluarga',
+            'slip_gaji': 'Slip Gaji Orang Tua',
+            'surat_keterangan': 'Surat Keterangan Tidak Mampu'
+        };
+        
+        if (documentNames[type]) {
+            $('#document_name').val(documentNames[type]);
+        }
+    });
+
+    // PERBAIKAN: Upload dengan AJAX menggunakan button click
+    $('#uploadBtn').on('click', function(e) {
         e.preventDefault();
         
-        let formData = new FormData(this);
+        // Validasi form
+        const documentType = $('#document_type').val();
+        const documentName = $('#document_name').val();
+        const file = $('#file')[0].files[0];
+        
+        if (!documentType || !documentName || !file) {
+            showAlert('danger', 'Mohon lengkapi semua field upload');
+            return;
+        }
+        
+        // Validasi file size
+        if (file.size > 2048 * 1024) {
+            showAlert('danger', 'Ukuran file maksimal 2MB');
+            return;
+        }
+        
+        // Validasi file type
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+        if (!allowedTypes.includes(file.type)) {
+            showAlert('danger', 'Tipe file harus PDF, JPG, JPEG, atau PNG');
+            return;
+        }
+        
+        let formData = new FormData();
+        formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
+        formData.append('document_type', documentType);
+        formData.append('document_name', documentName);
+        formData.append('file', file);
+        
         let uploadBtn = $('#uploadBtn');
         let uploadProgress = $('#uploadProgress');
         
@@ -633,8 +662,10 @@ $(document).ready(function() {
             },
             success: function(response) {
                 if (response.success) {
-                    // Reset form
-                    $('#uploadForm')[0].reset();
+                    // Reset upload form SAJA
+                    $('#document_type').val('');
+                    $('#document_name').val('');
+                    $('#file').val('');
                     
                     // Update documents table
                     updateDocumentsTable(response.document, response);
@@ -824,21 +855,25 @@ $(document).ready(function() {
         let hasCriteriaValues = $('input[name^="criteria_values"]:checked').length > 0;
         let canSubmit = allDocsUploaded && hasCriteriaValues;
         
-        let submitBtn = $('#submitBtn');
+        
+        let submitBtn = $('#submitApplicationBtn');
+        let submitHelp = $('#submitHelp');
+        
         if (canSubmit) {
             submitBtn.prop('disabled', false);
             submitBtn.removeClass('btn-secondary').addClass('btn-success');
-            $('#submitHelp').hide();
+            if (submitHelp.length) submitHelp.hide();
         } else {
             submitBtn.prop('disabled', true);
             submitBtn.removeClass('btn-success').addClass('btn-secondary');
-            $('#submitHelp').show();
+            if (submitHelp.length) submitHelp.show();
         }
     }
     
     function showAlert(type, message) {
         let alertHtml = `
             <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                <i class="fas ${getAlertIcon(type)} me-2"></i>
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
@@ -848,14 +883,79 @@ $(document).ready(function() {
         $('.alert-dismissible').remove();
         
         // Add new alert at top of content
-        $('.card').first().before(alertHtml);
+        $('.steps-progress').closest('.card').after(alertHtml);
         
-        // Auto dismiss after 5 seconds
-        setTimeout(function() {
-            $('.alert-dismissible').fadeOut();
-        }, 5000);
+        // Auto dismiss after 5 seconds for success/info
+        if (type === 'success' || type === 'info') {
+            setTimeout(function() {
+                $('.alert-dismissible').fadeOut();
+            }, 5000);
+        }
+        
+        // Scroll to top to show alert
+        $('html, body').animate({ scrollTop: 0 }, 300);
     }
     
+    function getAlertIcon(type) {
+        const icons = {
+            'success': 'fa-check-circle',
+            'danger': 'fa-exclamation-triangle',
+            'warning': 'fa-exclamation-circle',
+            'info': 'fa-info-circle'
+        };
+        return icons[type] || 'fa-info-circle';
+    }
+    
+    // PERBAIKAN: Handle submit aplikasi dengan AJAX
+    $(document).on('click', '#submitApplicationBtn', function(e) {
+        e.preventDefault();
+        
+        if ($(this).prop('disabled')) {
+            return;
+        }
+        
+        if (!confirm('Yakin ingin submit aplikasi? Setelah disubmit, Anda tidak dapat mengubah data lagi.')) {
+            return;
+        }
+        
+        const submitUrl = $(this).data('url');
+        const btn = $(this);
+        
+        btn.prop('disabled', true);
+        btn.html('<i class="fas fa-spinner fa-spin me-2"></i>Submitting...');
+        
+        $.ajax({
+            url: submitUrl,
+            type: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                if (response.success) {
+                    showAlert('success', 'Aplikasi berhasil disubmit! Redirecting...');
+                    
+                    // Redirect ke dashboard setelah 2 detik
+                    setTimeout(function() {
+                        window.location.href = '{{ route("student.dashboard") }}';
+                    }, 2000);
+                } else {
+                    showAlert('danger', response.message || 'Gagal submit aplikasi');
+                    btn.prop('disabled', false);
+                    btn.html('<i class="fas fa-paper-plane me-2"></i>Submit Aplikasi');
+                }
+            },
+            error: function(xhr) {
+                let message = 'Gagal submit aplikasi. Silakan coba lagi.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    message = xhr.responseJSON.message;
+                }
+                showAlert('danger', message);
+                btn.prop('disabled', false);
+                btn.html('<i class="fas fa-paper-plane me-2"></i>Submit Aplikasi');
+            }
+        });
+    });
     // Check submit button status on criteria change
     $('input[name^="criteria_values"]').on('change', function() {
         updateSubmitButton();
@@ -863,6 +963,15 @@ $(document).ready(function() {
     
     // Initialize submit button status
     updateSubmitButton();
+    
+    // PERBAIKAN: Prevent form submit yang tidak diinginkan
+    $('#mainForm').on('submit', function(e) {
+        // Pastikan ini bukan submit dari upload button
+        if ($(document.activeElement).attr('id') === 'uploadBtn') {
+            e.preventDefault();
+            return false;
+        }
+    });
 });
 </script>
 @endpush

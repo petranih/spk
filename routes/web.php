@@ -1,5 +1,5 @@
 <?php
-// routes/web.php - Updated version dengan perbaikan upload
+// routes/web.php - PERBAIKAN untuk handle upload dengan benar
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\MultiAuthController;
@@ -57,40 +57,18 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Alternative route for sub-subcriteria index without subcriterion parameter (for selection)
     Route::get('/subsubcriteria/{subcriterion?}', [SubSubCriteriaController::class, 'index'])->name('subsubcriteria.index');
     
-    // Pairwise Comparison Routes - Updated with index and proper navigation
+    // Pairwise Comparison Routes
     Route::prefix('pairwise')->name('pairwise.')->group(function () {
-        
-        // Main Index/Navigation Page
-        Route::get('/', [PairwiseComparisonController::class, 'index'])
-            ->name('index');
-        
-        // Criteria Level
-        Route::get('/criteria', [PairwiseComparisonController::class, 'criteria'])
-            ->name('criteria');
-        Route::post('/criteria', [PairwiseComparisonController::class, 'storeCriteria'])
-            ->name('criteria.store');
-        
-        // Sub-Criteria Level
-        Route::get('/subcriteria/{criterion}', [PairwiseComparisonController::class, 'subCriteria'])
-            ->name('subcriteria');
-        Route::post('/subcriteria/{criterion}', [PairwiseComparisonController::class, 'storeSubCriteria'])
-            ->name('subcriteria.store');
-        
-        // Sub-Sub-Criteria Level
-        Route::get('/subsubcriteria/{subcriterion}', [PairwiseComparisonController::class, 'subSubCriteria'])
-            ->name('subsubcriteria');
-        Route::post('/subsubcriteria/{subcriterion}', [PairwiseComparisonController::class, 'storeSubSubCriteria'])
-            ->name('subsubcriteria.store');
-        
-        // Consistency Overview
-        Route::get('/consistency-overview', [PairwiseComparisonController::class, 'consistencyOverview'])
-            ->name('consistency.overview');
-        
-        // Export and Utility Routes
-        Route::get('/export/{type}/{parentId?}', [PairwiseComparisonController::class, 'exportMatrix'])
-            ->name('export.matrix');
-        Route::post('/reset', [PairwiseComparisonController::class, 'resetComparisons'])
-            ->name('reset');
+        Route::get('/', [PairwiseComparisonController::class, 'index'])->name('index');
+        Route::get('/criteria', [PairwiseComparisonController::class, 'criteria'])->name('criteria');
+        Route::post('/criteria', [PairwiseComparisonController::class, 'storeCriteria'])->name('criteria.store');
+        Route::get('/subcriteria/{criterion}', [PairwiseComparisonController::class, 'subCriteria'])->name('subcriteria');
+        Route::post('/subcriteria/{criterion}', [PairwiseComparisonController::class, 'storeSubCriteria'])->name('subcriteria.store');
+        Route::get('/subsubcriteria/{subcriterion}', [PairwiseComparisonController::class, 'subSubCriteria'])->name('subsubcriteria');
+        Route::post('/subsubcriteria/{subcriterion}', [PairwiseComparisonController::class, 'storeSubSubCriteria'])->name('subsubcriteria.store');
+        Route::get('/consistency-overview', [PairwiseComparisonController::class, 'consistencyOverview'])->name('consistency.overview');
+        Route::get('/export/{type}/{parentId?}', [PairwiseComparisonController::class, 'exportMatrix'])->name('export.matrix');
+        Route::post('/reset', [PairwiseComparisonController::class, 'resetComparisons'])->name('reset');
     });
 
     // Application Scoring Routes
@@ -124,7 +102,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/report/{period}/export-excel', [ReportController::class, 'exportExcel'])->name('report.export.excel');
 });
 
-// Student routes
+// Student routes - PERBAIKAN: Rute upload yang lebih spesifik
 Route::middleware(['auth', 'student'])->prefix('student')->name('student.')->group(function () {
     Route::get('/dashboard', [StudentController::class, 'dashboard'])->name('dashboard');
     
@@ -135,9 +113,11 @@ Route::middleware(['auth', 'student'])->prefix('student')->name('student.')->gro
     Route::put('/application/{application}', [ApplicationController::class, 'update'])->name('application.update');
     Route::post('/application/{application}/submit', [ApplicationController::class, 'submit'])->name('application.submit');
     
-    // Document upload - DIPERBAIKI UNTUK SUPPORT AJAX
-    Route::post('/application/{application}/upload', [ApplicationController::class, 'uploadDocument'])->name('application.upload');
-    Route::delete('/application/{application}/document/{document}', [ApplicationController::class, 'deleteDocument'])->name('application.document.delete');
+    // PERBAIKAN: Document upload routes yang lebih jelas
+    Route::post('/application/{application}/upload', [ApplicationController::class, 'uploadDocument'])
+        ->name('application.upload');
+    Route::delete('/application/{application}/document/{document}', [ApplicationController::class, 'deleteDocument'])
+        ->name('application.document.delete');
 });
 
 // Validator routes

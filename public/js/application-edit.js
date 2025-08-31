@@ -1,5 +1,5 @@
 // public/js/application-edit.js
-// JavaScript untuk menangani upload dokumen dan update real-time
+// PERBAIKAN: JavaScript untuk menangani upload dokumen tanpa reset form utama
 
 class ApplicationEdit {
     constructor() {
@@ -12,9 +12,10 @@ class ApplicationEdit {
     }
 
     setupEventListeners() {
-        // AJAX Upload Form
-        $('#uploadForm').on('submit', (e) => {
+        // PERBAIKAN: Upload menggunakan button click, bukan form submit
+        $('#uploadBtn').on('click', (e) => {
             e.preventDefault();
+            e.stopPropagation(); // Prevent event bubbling
             this.handleUpload();
         });
 
@@ -44,8 +45,15 @@ class ApplicationEdit {
             }
         });
 
-        // Form validation before submit
+        // PERBAIKAN: Prevent main form submit when upload button is clicked
         $('#mainForm').on('submit', (e) => {
+            // Jika yang diklik adalah upload button, prevent submit
+            if ($(document.activeElement).attr('id') === 'uploadBtn') {
+                e.preventDefault();
+                return false;
+            }
+            
+            // Validasi form sebelum submit
             if (!this.validateForm()) {
                 e.preventDefault();
                 this.showAlert('warning', 'Mohon lengkapi semua data yang diperlukan');
@@ -54,22 +62,48 @@ class ApplicationEdit {
     }
 
     handleUpload() {
-        const formData = new FormData(document.getElementById('uploadForm'));
-        const uploadBtn = $('#uploadBtn');
-        const uploadProgress = $('#uploadProgress');
+        // Validasi input upload
+        const documentType = $('#document_type').val();
+        const documentName = $('#document_name').val();
+        const fileInput = $('#file')[0];
+        const file = fileInput.files[0];
+        
+        if (!documentType || !documentName || !file) {
+            this.showAlert('danger', 'Mohon lengkapi semua field upload');
+            return;
+        }
+        
+        // Validasi file size (2MB = 2048KB)
+        if (file.size > 2048 * 1024) {
+            this.showAlert('danger', 'Ukuran file maksimal 2MB');
+            return;
+        }
+        
+        // Validasi file type
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+        if (!allowedTypes.includes(file.type)) {
+            this.showAlert('danger', 'Tipe file harus PDF, JPG, JPEG, atau PNG');
+            return;
+        }
+        
+        // Buat FormData untuk upload
+        const formData = new FormData();
+        formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
+        formData.append('document_type', documentType);
+        formData.append('document_name', documentName);
+        formData.append('file', file);
         
         // Show loading state
         this.setUploadLoading(true);
         
         $.ajax({
-            url: uploadForm.dataset.uploadUrl || window.location.pathname + '/upload',
+            url: $('#mainForm').attr('action') + '/upload', // Dynamic URL berdasarkan main form
             type: 'POST',
             data: formData,
             processData: false,
             contentType: false,
             headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                'X-Requested-With': 'XMLHttpRequest'
             },
             success: (response) => {
                 if (response.success) {
@@ -88,8 +122,10 @@ class ApplicationEdit {
     }
 
     handleUploadSuccess(response) {
-        // Reset form
-        document.getElementById('uploadForm').reset();
+        // PERBAIKAN: Reset HANYA form upload, bukan seluruh form
+        $('#document_type').val('');
+        $('#document_name').val('');
+        $('#file').val('');
         
         // Update documents table
         this.updateDocumentsTable(response.document, response);
@@ -357,40 +393,73 @@ class ApplicationEdit {
         return icons[type] || 'fa-info-circle';
     }
 
-    // Utility method to save form data to prevent loss
-    saveFormData() {
-        const formData = {};
-        $('#mainForm').find('input, select, textarea').each(function() {
-            if (this.name && this.value) {
-                formData[this.name] = this.value;
+    // PERBAIKAN: Utility method to handle upload specifically
+    validateUploadForm() {
+        const documentType = $('#document_type').val();
+        const documentName = $('#document_name').val();
+        const file = $('#file')[0].files[0];
+        
+        if (!documentType || !documentName || !file) {
+            this.showAlert('danger', 'Mohon lengkapi semua field upload');
+            return false;
+        }
+        
+        // Validate file size
+        if (file.size > 2048 * 1024) {
+            this.showAlert('danger', 'Ukuran file maksimal 2MB');
+            return false;
+        }
+        
+        // Validate file type
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+        if (!allowedTypes.includes(file.type)) {
+            this.showAlert('danger', 'Tipe file harus PDF, JPG, JPEG, atau PNG');
+            return false;
+        }
+        
+        return true;
+    }
+
+    // Method untuk handle upload dengan validasi yang tepat
+    performUpload() {
+        if (!this.validateUploadForm()) {
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
+        formData.append('document_type', $('#document_type').val());
+        formData.append('document_name', $('#document_name').val());
+        formData.append('file', $('#file')[0].files[0]);
+        
+        // Get upload URL dari route
+        const uploadUrl = $('#mainForm').attr('action') + '/upload';
+        
+        this.setUploadLoading(true);
+        
+        $.ajax({
+            url: uploadUrl,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: (response) => {
+                if (response.success) {
+                    this.handleUploadSuccess(response);
+                } else {
+                    this.showAlert('danger', response.message || 'Upload gagal');
+                }
+            },
+            error: (xhr) => {
+                this.handleUploadError(xhr);
+            },
+            complete: () => {
+                this.setUploadLoading(false);
             }
         });
-        
-        // Save to sessionStorage temporarily (only for this session)
-        sessionStorage.setItem('applicationFormData', JSON.stringify(formData));
-    }
-
-    // Restore form data if available
-    restoreFormData() {
-        const savedData = sessionStorage.getItem('applicationFormData');
-        if (savedData) {
-            try {
-                const formData = JSON.parse(savedData);
-                Object.keys(formData).forEach(name => {
-                    const input = $(`[name="${name}"]`);
-                    if (input.length && !input.val()) {
-                        input.val(formData[name]);
-                    }
-                });
-            } catch (e) {
-                console.log('Error restoring form data:', e);
-            }
-        }
-    }
-
-    // Clear saved form data
-    clearSavedFormData() {
-        sessionStorage.removeItem('applicationFormData');
     }
 }
 
@@ -398,20 +467,29 @@ class ApplicationEdit {
 $(document).ready(function() {
     window.applicationEdit = new ApplicationEdit();
     
-    // Save form data periodically to prevent loss
-    setInterval(() => {
+    // PERBAIKAN: Override default form behavior untuk upload
+    $('#uploadBtn').on('click', function(e) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        
         if (window.applicationEdit) {
-            window.applicationEdit.saveFormData();
+            window.applicationEdit.performUpload();
         }
-    }, 30000); // Save every 30 seconds
-
-    // Clear saved data when form is successfully submitted
-    $('#mainForm').on('submit', function() {
-        setTimeout(() => {
-            if (window.applicationEdit) {
-                window.applicationEdit.clearSavedFormData();
-            }
-        }, 1000);
+    });
+    
+    // PERBAIKAN: Prevent any form submission dari dalam upload area
+    $('#uploadForm').on('submit', function(e) {
+        e.preventDefault();
+        return false;
+    });
+    
+    // Handle file change untuk preview
+    $('#file').on('change', function() {
+        const file = this.files[0];
+        if (file) {
+            // Optional: Show file preview atau info
+            console.log('File selected:', file.name, 'Size:', formatFileSize(file.size));
+        }
     });
 });
 
