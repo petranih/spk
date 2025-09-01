@@ -136,7 +136,7 @@
                                 @foreach($pendingApplications as $app)
                                 <tr>
                                     <td>
-                                        <code>APP-{{ $app->id }}</code>
+                                        <code>{{ $app->application_number }}</code>
                                         <br>
                                         <small class="text-muted">{{ $app->period->name }}</small>
                                     </td>
@@ -145,6 +145,10 @@
                                             <strong>{{ $app->full_name }}</strong>
                                             <br>
                                             <small class="text-muted">{{ $app->user->email }}</small>
+                                            @if($app->nisn)
+                                            <br>
+                                            <small class="text-muted">NISN: {{ $app->nisn }}</small>
+                                            @endif
                                         </div>
                                     </td>
                                     <td>
@@ -202,7 +206,7 @@
                                 @foreach($myValidations as $validation)
                                 <tr>
                                     <td>
-                                        <code>APP-{{ $validation->application->id }}</code>
+                                        <code>{{ $validation->application->application_number }}</code>
                                         <br>
                                         <small class="text-muted">{{ $validation->application->period->name }}</small>
                                     </td>

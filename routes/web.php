@@ -128,6 +128,10 @@ Route::middleware(['auth', 'validator'])->prefix('validator')->name('validator.'
     Route::get('/validation', [ValidationController::class, 'index'])->name('validation.index');
     Route::get('/validation/{application}', [ValidationController::class, 'show'])->name('validation.show');
     Route::post('/validation/{application}', [ValidationController::class, 'processValidation'])->name('validation.store');
+    Route::get('/document/{document}', [App\Http\Controllers\FileController::class, 'showDocument'])
+        ->name('document.show');
+    Route::get('/document/{document}/download', [App\Http\Controllers\FileController::class, 'downloadDocument'])
+        ->name('document.download');
 });
 
 // API Routes for AJAX calls
