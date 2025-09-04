@@ -14,6 +14,7 @@ use App\Models\ApplicationDocument;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ApplicationController extends Controller
 {
@@ -94,12 +95,18 @@ class ApplicationController extends Controller
             ->orderBy('order')
             ->get();
 
-        // Get existing values dengan proper key mapping
+        // PERBAIKAN: Get existing values dengan logging untuk debug
         $existingValues = ApplicationValue::where('application_id', $application->id)
             ->get()
             ->keyBy(function ($item) {
                 return $item->criteria_type . '_' . $item->criteria_id;
             });
+
+        Log::info('Existing values for application ' . $application->id, [
+            'count' => $existingValues->count(),
+            'keys' => $existingValues->keys()->toArray(),
+            'values' => $existingValues->pluck('value', 'criteria_type')->toArray()
+        ]);
 
         // Load documents dengan proper relation
         $documents = ApplicationDocument::where('application_id', $application->id)
@@ -149,26 +156,60 @@ class ApplicationController extends Controller
                 'updated_at' => now(),
             ]);
 
-            // PERBAIKAN: Update criteria values dengan validasi score
-            if ($request->has('criteria_values')) {
+            // PERBAIKAN: Update criteria values dengan logging dan validasi yang lebih baik
+            Log::info('Processing criteria values', [
+                'application_id' => $application->id,
+                'has_criteria_values' => $request->has('criteria_values'),
+                'criteria_values' => $request->input('criteria_values', [])
+            ]);
+
+            if ($request->has('criteria_values') && is_array($request->criteria_values)) {
                 foreach ($request->criteria_values as $criteriaType => $values) {
+                    if (!is_array($values)) {
+                        Log::warning('Invalid criteria values format', [
+                            'criteria_type' => $criteriaType,
+                            'values' => $values
+                        ]);
+                        continue;
+                    }
+
                     foreach ($values as $criteriaId => $value) {
+                        Log::info('Processing individual criteria value', [
+                            'criteria_type' => $criteriaType,
+                            'criteria_id' => $criteriaId,
+                            'value' => $value
+                        ]);
+
                         // Hapus existing value untuk criteria ini
-                        ApplicationValue::where('application_id', $application->id)
+                        $deletedCount = ApplicationValue::where('application_id', $application->id)
                             ->where('criteria_type', $criteriaType)
                             ->where('criteria_id', $criteriaId)
                             ->delete();
 
-                        // Insert new value jika ada
-                        if (!empty($value)) {
+                        Log::info('Deleted existing values', ['count' => $deletedCount]);
+
+                        // Insert new value jika ada dan valid
+                        if (!empty($value) && $value !== '') {
                             $score = $this->calculateScore($criteriaType, $criteriaId, $value);
                             
-                            // PERBAIKAN: Pastikan score tidak null
-                            if ($score === null) {
+                            Log::info('Calculated score', [
+                                'criteria_type' => $criteriaType,
+                                'criteria_id' => $criteriaId,
+                                'value' => $value,
+                                'score' => $score
+                            ]);
+                            
+                            // PERBAIKAN: Pastikan score tidak null dan validasi value
+                            if ($score === null || $score < 0) {
                                 $score = 0;
+                                Log::warning('Invalid score calculated, setting to 0', [
+                                    'criteria_type' => $criteriaType,
+                                    'criteria_id' => $criteriaId,
+                                    'original_score' => $score
+                                ]);
                             }
                             
-                            ApplicationValue::create([
+                            $applicationValue = ApplicationValue::create([
                                 'application_id' => $application->id,
                                 'criteria_type' => $criteriaType,
                                 'criteria_id' => $criteriaId,
@@ -177,9 +218,23 @@ class ApplicationController extends Controller
                                 'created_at' => now(),
                                 'updated_at' => now(),
                             ]);
+
+                            Log::info('Created application value', [
+                                'id' => $applicationValue->id,
+                                'application_id' => $application->id,
+                                'criteria_type' => $criteriaType,
+                                'criteria_id' => $criteriaId,
+                                'value' => $value,
+                                'score' => $score
+                            ]);
                         }
                     }
                 }
+            } else {
+                Log::warning('No criteria values found in request', [
+                    'application_id' => $application->id,
+                    'request_data' => $request->all()
+                ]);
             }
         });
 
@@ -267,7 +322,7 @@ class ApplicationController extends Controller
             ]);
                 
         } catch (\Exception $e) {
-            \Log::error('Document upload failed: ' . $e->getMessage());
+            Log::error('Document upload failed: ' . $e->getMessage());
             
             return response()->json([
                 'success' => false,
@@ -311,7 +366,7 @@ class ApplicationController extends Controller
                 ->with('success', 'Dokumen berhasil dihapus');
                 
         } catch (\Exception $e) {
-            \Log::error('Document deletion failed: ' . $e->getMessage());
+            Log::error('Document deletion failed: ' . $e->getMessage());
             
             if ($request->ajax()) {
                 return response()->json(['success' => false, 'message' => 'Gagal menghapus dokumen'], 500);
@@ -350,10 +405,29 @@ class ApplicationController extends Controller
             $validationErrors[] = 'Data pribadi belum lengkap';
         }
 
-        // Check criteria values
-        $applicationValues = ApplicationValue::where('application_id', $application->id)->count();
-        if ($applicationValues == 0) {
+        // PERBAIKAN: Check criteria values dengan logging
+        $applicationValues = ApplicationValue::where('application_id', $application->id)->get();
+        Log::info('Validation check for application values', [
+            'application_id' => $application->id,
+            'values_count' => $applicationValues->count(),
+            'values' => $applicationValues->pluck('score', 'criteria_type')->toArray()
+        ]);
+
+        if ($applicationValues->count() == 0) {
             $validationErrors[] = 'Data kriteria AHP belum diisi';
+        } else {
+            // Cek apakah semua nilai memiliki score > 0
+            $validValues = $applicationValues->where('score', '>', 0)->count();
+            $totalValues = $applicationValues->count();
+            
+            Log::info('Criteria values validation', [
+                'valid_values' => $validValues,
+                'total_values' => $totalValues
+            ]);
+            
+            if ($validValues == 0) {
+                $validationErrors[] = 'Semua nilai kriteria masih 0, silakan periksa kembali pilihan Anda';
+            }
         }
 
         // Validate required documents
@@ -409,7 +483,7 @@ class ApplicationController extends Controller
                 ->with('success', 'Aplikasi berhasil disubmit untuk validasi. Silakan tunggu proses validasi dari administrator.');
                 
         } catch (\Exception $e) {
-            \Log::error('Application submission failed: ' . $e->getMessage());
+            Log::error('Application submission failed: ' . $e->getMessage());
             
             if ($request->ajax()) {
                 return response()->json([
@@ -427,18 +501,81 @@ class ApplicationController extends Controller
     {
         // PERBAIKAN: Logic perhitungan score yang lebih akurat dengan fallback
         try {
-            if ($criteriaType === 'subcriteria') {
-                $subCriteria = SubCriteria::find($value);
-                return $subCriteria ? ($subCriteria->score ?? 0) : 0;
+            Log::info('Calculating score', [
+                'criteria_type' => $criteriaType,
+                'criteria_id' => $criteriaId,
+                'value' => $value
+            ]);
+
+            if ($criteriaType === 'criteria') {
+                // Untuk criteria langsung, value mungkin adalah ID dari subcriteria atau nilai langsung
+                if (is_numeric($value)) {
+                    $criteria = Criteria::find($criteriaId);
+                    if ($criteria && isset($criteria->score)) {
+                        return $criteria->score;
+                    }
+                }
+                return 1; // Default score untuk criteria
+                
+            } elseif ($criteriaType === 'subcriteria') {
+                // Value adalah ID dari SubSubCriteria atau nilai langsung
+                if (is_numeric($value)) {
+                    // Coba cari sebagai SubSubCriteria ID first
+                    $subSubCriteria = SubSubCriteria::find($value);
+                    if ($subSubCriteria) {
+                        Log::info('Found SubSubCriteria', [
+                            'id' => $subSubCriteria->id,
+                            'score' => $subSubCriteria->score
+                        ]);
+                        return $subSubCriteria->score ?? 1;
+                    }
+                    
+                    // Jika tidak, ambil score dari SubCriteria
+                    $subCriteria = SubCriteria::find($criteriaId);
+                    if ($subCriteria) {
+                        Log::info('Found SubCriteria', [
+                            'id' => $subCriteria->id,
+                            'score' => $subCriteria->score
+                        ]);
+                        return $subCriteria->score ?? 1;
+                    }
+                }
+                return 1; // Default score
+                
             } elseif ($criteriaType === 'subsubcriteria') {
-                $subSubCriteria = SubSubCriteria::find($value);
-                return $subSubCriteria ? ($subSubCriteria->score ?? 0) : 0;
+                // Untuk subsubcriteria, value adalah pilihan atau ID
+                if (is_numeric($value)) {
+                    $subSubCriteria = SubSubCriteria::find($value);
+                    if ($subSubCriteria) {
+                        Log::info('Found SubSubCriteria for direct lookup', [
+                            'id' => $subSubCriteria->id,
+                            'score' => $subSubCriteria->score
+                        ]);
+                        return $subSubCriteria->score ?? 1;
+                    }
+                }
+                
+                // Jika value bukan ID, coba cari berdasarkan criteria_id
+                $subSubCriteria = SubSubCriteria::find($criteriaId);
+                if ($subSubCriteria) {
+                    Log::info('Found SubSubCriteria by criteria_id', [
+                        'id' => $subSubCriteria->id,
+                        'score' => $subSubCriteria->score
+                    ]);
+                    return $subSubCriteria->score ?? 1;
+                }
+                
+                return 1; // Default score
             }
         } catch (\Exception $e) {
-            \Log::error('Error calculating score: ' . $e->getMessage());
+            Log::error('Error calculating score: ' . $e->getMessage(), [
+                'criteria_type' => $criteriaType,
+                'criteria_id' => $criteriaId,
+                'value' => $value
+            ]);
         }
 
-        return 0; // Default fallback score
+        return 1; // Default fallback score
     }
 
     private function getDocumentTypeDisplay($type)
