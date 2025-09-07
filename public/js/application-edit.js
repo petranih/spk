@@ -1,131 +1,172 @@
 // public/js/application-edit.js
-// PERBAIKAN: JavaScript untuk menangani upload dokumen tanpa reset form utama
+// PERBAIKAN: JavaScript untuk menangani form edit aplikasi dengan submission yang benar
 
 class ApplicationEdit {
     constructor() {
+        this.applicationId = null;
+        this.uploadUrl = null;
+        this.submitUrl = null;
         this.init();
     }
 
     init() {
         this.setupEventListeners();
         this.updateSubmitButton();
+        this.initializeUrls();
+    }
+
+    initializeUrls() {
+        // Get URLs from DOM elements
+        const submitBtn = document.getElementById('submitApplicationBtn');
+        if (submitBtn) {
+            this.submitUrl = submitBtn.dataset.url;
+        }
+        
+        // Extract application ID from form action
+        const form = document.getElementById('mainApplicationForm');
+        if (form && form.action) {
+            const matches = form.action.match(/application\/(\d+)/);
+            if (matches) {
+                this.applicationId = matches[1];
+                this.uploadUrl = form.action.replace('/update', '') + '/upload';
+            }
+        }
     }
 
     setupEventListeners() {
-        // PERBAIKAN: Upload menggunakan button click, bukan form submit
-        $('#uploadBtn').on('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation(); // Prevent event bubbling
-            this.handleUpload();
-        });
+        // Main form submission (untuk save data)
+        const mainForm = document.getElementById('mainApplicationForm');
+        if (mainForm) {
+            mainForm.addEventListener('submit', (e) => {
+                console.log('Main form submitted');
+                this.showAlert('info', 'Menyimpan data...');
+            });
+        }
 
-        // AJAX Delete Document
-        $(document).on('click', '.delete-doc-btn', (e) => {
-            e.preventDefault();
-            this.handleDelete(e.target);
-        });
-
-        // Check submit button status on criteria change
-        $('input[name^="criteria_values"]').on('change', () => {
-            this.updateSubmitButton();
-        });
-
-        // Auto-fill document name based on document type
-        $('#document_type').on('change', (e) => {
-            const type = e.target.value;
-            const documentNames = {
-                'ktp': 'KTP Orang Tua',
-                'kk': 'Kartu Keluarga',
-                'slip_gaji': 'Slip Gaji Orang Tua',
-                'surat_keterangan': 'Surat Keterangan Tidak Mampu'
-            };
-            
-            if (documentNames[type]) {
-                $('#document_name').val(documentNames[type]);
-            }
-        });
-
-        // PERBAIKAN: Prevent main form submit when upload button is clicked
-        $('#mainForm').on('submit', (e) => {
-            // Jika yang diklik adalah upload button, prevent submit
-            if ($(document.activeElement).attr('id') === 'uploadBtn') {
+        // Upload document button
+        const uploadBtn = document.getElementById('uploadBtn');
+        if (uploadBtn) {
+            uploadBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                return false;
-            }
-            
-            // Validasi form sebelum submit
-            if (!this.validateForm()) {
+                e.stopPropagation();
+                this.handleUpload();
+            });
+        }
+
+        // Submit application button  
+        const submitBtn = document.getElementById('submitApplicationBtn');
+        if (submitBtn) {
+            submitBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                this.showAlert('warning', 'Mohon lengkapi semua data yang diperlukan');
+                this.handleSubmit();
+            });
+        }
+
+        // Delete document buttons (event delegation)
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.delete-doc-btn')) {
+                e.preventDefault();
+                this.handleDelete(e.target.closest('.delete-doc-btn'));
             }
         });
+
+        // Document type auto-fill
+        const docTypeSelect = document.getElementById('document_type');
+        if (docTypeSelect) {
+            docTypeSelect.addEventListener('change', (e) => {
+                this.autoFillDocumentName(e.target.value);
+            });
+        }
+
+        // Criteria input changes
+        document.addEventListener('change', (e) => {
+            if (e.target.classList.contains('criteria-input')) {
+                this.updateCriteriaChecklist();
+                this.updateSubmitButton();
+            }
+        });
+    }
+
+    autoFillDocumentName(type) {
+        const documentNames = {
+            'ktp': 'KTP Orang Tua',
+            'kk': 'Kartu Keluarga',
+            'slip_gaji': 'Slip Gaji Orang Tua',
+            'surat_keterangan': 'Surat Keterangan Tidak Mampu'
+        };
+        
+        const nameInput = document.getElementById('document_name');
+        if (nameInput && documentNames[type]) {
+            nameInput.value = documentNames[type];
+        }
     }
 
     handleUpload() {
-        // Validasi input upload
-        const documentType = $('#document_type').val();
-        const documentName = $('#document_name').val();
-        const fileInput = $('#file')[0];
-        const file = fileInput.files[0];
-        
-        if (!documentType || !documentName || !file) {
-            this.showAlert('danger', 'Mohon lengkapi semua field upload');
+        if (!this.validateUploadForm()) {
             return;
         }
-        
-        // Validasi file size (2MB = 2048KB)
-        if (file.size > 2048 * 1024) {
-            this.showAlert('danger', 'Ukuran file maksimal 2MB');
-            return;
-        }
-        
-        // Validasi file type
-        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-        if (!allowedTypes.includes(file.type)) {
-            this.showAlert('danger', 'Tipe file harus PDF, JPG, JPEG, atau PNG');
-            return;
-        }
-        
-        // Buat FormData untuk upload
+
         const formData = new FormData();
-        formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
-        formData.append('document_type', documentType);
-        formData.append('document_name', documentName);
-        formData.append('file', file);
-        
-        // Show loading state
+        formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+        formData.append('document_type', document.getElementById('document_type').value);
+        formData.append('document_name', document.getElementById('document_name').value);
+        formData.append('file', document.getElementById('file').files[0]);
+
         this.setUploadLoading(true);
-        
-        $.ajax({
-            url: $('#mainForm').attr('action') + '/upload', // Dynamic URL berdasarkan main form
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
+
+        fetch(this.uploadUrl, {
+            method: 'POST',
+            body: formData,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
-            },
-            success: (response) => {
-                if (response.success) {
-                    this.handleUploadSuccess(response);
-                } else {
-                    this.showAlert('danger', response.message || 'Upload gagal');
-                }
-            },
-            error: (xhr) => {
-                this.handleUploadError(xhr);
-            },
-            complete: () => {
-                this.setUploadLoading(false);
             }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                this.handleUploadSuccess(data);
+            } else {
+                this.showAlert('danger', data.message || 'Upload gagal');
+            }
+        })
+        .catch(error => {
+            console.error('Upload error:', error);
+            this.showAlert('danger', 'Upload gagal. Silakan coba lagi.');
+        })
+        .finally(() => {
+            this.setUploadLoading(false);
         });
     }
 
+    validateUploadForm() {
+        const documentType = document.getElementById('document_type').value;
+        const documentName = document.getElementById('document_name').value;
+        const file = document.getElementById('file').files[0];
+        
+        if (!documentType || !documentName || !file) {
+            this.showAlert('danger', 'Mohon lengkapi semua field upload');
+            return false;
+        }
+        
+        if (file.size > 2048 * 1024) {
+            this.showAlert('danger', 'Ukuran file maksimal 2MB');
+            return false;
+        }
+        
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+        if (!allowedTypes.includes(file.type)) {
+            this.showAlert('danger', 'Tipe file harus PDF, JPG, JPEG, atau PNG');
+            return false;
+        }
+        
+        return true;
+    }
+
     handleUploadSuccess(response) {
-        // PERBAIKAN: Reset HANYA form upload, bukan seluruh form
-        $('#document_type').val('');
-        $('#document_name').val('');
-        $('#file').val('');
+        // Reset upload form
+        document.getElementById('document_type').value = '';
+        document.getElementById('document_name').value = '';
+        document.getElementById('file').value = '';
         
         // Update documents table
         this.updateDocumentsTable(response.document, response);
@@ -136,102 +177,195 @@ class ApplicationEdit {
         // Update submit button status
         this.updateSubmitButton();
         
-        // Show success message
         this.showAlert('success', response.message);
     }
 
-    handleUploadError(xhr) {
-        let message = 'Upload gagal. Silakan coba lagi.';
+    setUploadLoading(loading) {
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadProgress = document.getElementById('uploadProgress');
         
-        if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
-            // Validation errors
-            const errors = Object.values(xhr.responseJSON.errors).flat();
-            message = errors.join(', ');
-        } else if (xhr.responseJSON && xhr.responseJSON.message) {
-            message = xhr.responseJSON.message;
+        if (loading) {
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Uploading...';
+            uploadProgress.style.display = 'block';
+        } else {
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="fas fa-upload me-1"></i>Upload';
+            uploadProgress.style.display = 'none';
         }
-        
-        this.showAlert('danger', message);
     }
 
-    handleDelete(target) {
+    handleDelete(button) {
         if (!confirm('Yakin hapus dokumen ini?')) {
             return;
         }
         
-        const btn = $(target).closest('.delete-doc-btn');
-        const docId = btn.data('doc-id');
-        const deleteUrl = btn.data('delete-url');
+        const docId = button.dataset.docId;
+        const deleteUrl = button.dataset.deleteUrl;
         
-        btn.prop('disabled', true);
-        btn.html('<i class="fas fa-spinner fa-spin"></i>');
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         
-        $.ajax({
-            url: deleteUrl,
-            type: 'DELETE',
+        fetch(deleteUrl, {
+            method: 'DELETE',
             headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'X-Requested-With': 'XMLHttpRequest'
-            },
-            success: (response) => {
-                if (response.success) {
-                    this.handleDeleteSuccess(docId, response.message);
-                } else {
-                    this.showAlert('danger', response.message || 'Gagal menghapus dokumen');
-                }
-            },
-            error: () => {
-                this.showAlert('danger', 'Gagal menghapus dokumen. Silakan coba lagi.');
-            },
-            complete: () => {
-                btn.prop('disabled', false);
-                btn.html('<i class="fas fa-trash"></i>');
             }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                this.handleDeleteSuccess(docId, data.message);
+            } else {
+                this.showAlert('danger', data.message || 'Gagal menghapus dokumen');
+            }
+        })
+        .catch(error => {
+            console.error('Delete error:', error);
+            this.showAlert('danger', 'Gagal menghapus dokumen. Silakan coba lagi.');
+        })
+        .finally(() => {
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-trash"></i>';
         });
     }
 
     handleDeleteSuccess(docId, message) {
-        // Remove row from table with animation
-        $(`#doc_${docId}`).fadeOut(300, function() {
-            $(this).remove();
-            
-            // Check if table is empty
-            if ($('#documentsTableBody tr').length === 0) {
-                $('#documentsContainer').html(`
-                    <div class="text-center text-muted" id="emptyDocuments">
-                        <i class="fas fa-file-upload fa-3x mb-2"></i>
-                        <p>Belum ada dokumen yang diupload</p>
-                    </div>
-                `);
-            }
-        });
+        const row = document.getElementById(`doc_${docId}`);
+        if (row) {
+            row.style.transition = 'opacity 0.3s';
+            row.style.opacity = '0';
+            setTimeout(() => {
+                row.remove();
+                
+                // Check if table is empty
+                const tableBody = document.getElementById('documentsTableBody');
+                if (tableBody && tableBody.children.length === 0) {
+                    document.getElementById('documentsContainer').innerHTML = `
+                        <div class="text-center text-muted" id="emptyDocuments">
+                            <i class="fas fa-file-upload fa-3x mb-2"></i>
+                            <p>Belum ada dokumen yang diupload</p>
+                        </div>
+                    `;
+                }
+            }, 300);
+        }
         
-        // Update checklist and submit button
         this.updateChecklistAfterDelete();
         this.updateSubmitButton();
-        
         this.showAlert('success', message);
     }
 
-    setUploadLoading(loading) {
-        const uploadBtn = $('#uploadBtn');
-        const uploadProgress = $('#uploadProgress');
+    handleSubmit() {
+        const submitBtn = document.getElementById('submitApplicationBtn');
         
-        if (loading) {
-            uploadBtn.prop('disabled', true);
-            uploadBtn.html('<i class="fas fa-spinner fa-spin me-1"></i>Uploading...');
-            uploadProgress.show();
-        } else {
-            uploadBtn.prop('disabled', false);
-            uploadBtn.html('<i class="fas fa-upload me-1"></i>Upload');
-            uploadProgress.hide();
+        if (submitBtn.disabled) {
+            this.showAlert('warning', 'Pastikan semua data sudah lengkap sebelum submit');
+            return;
         }
+        
+        // Validation before submit
+        const validationErrors = this.validateBeforeSubmit();
+        if (validationErrors.length > 0) {
+            this.showAlert('danger', 'Tidak dapat submit: ' + validationErrors.join('; '));
+            return;
+        }
+        
+        if (!confirm('Yakin ingin submit aplikasi?\n\nSetelah disubmit, Anda tidak dapat mengubah data lagi.\n\nPastikan semua data sudah benar!')) {
+            return;
+        }
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
+        
+        fetch(this.submitUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                this.showAlert('success', data.message + ' Redirecting...');
+                
+                // Disable all form elements
+                const allInputs = document.querySelectorAll('input, select, textarea, button');
+                allInputs.forEach(input => input.disabled = true);
+                
+                setTimeout(() => {
+                    window.location.href = data.redirect_url || '/student/dashboard';
+                }, 3000);
+            } else {
+                this.showAlert('danger', data.message || 'Gagal submit aplikasi');
+                
+                if (data.errors && Array.isArray(data.errors)) {
+                    const errorList = data.errors.map(err => `• ${err}`).join('<br>');
+                    this.showAlert('danger', `Gagal submit aplikasi:<br>${errorList}`);
+                }
+                
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Aplikasi';
+            }
+        })
+        .catch(error => {
+            console.error('Submit error:', error);
+            this.showAlert('danger', 'Gagal submit aplikasi. Silakan coba lagi.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Aplikasi';
+        });
+    }
+
+    validateBeforeSubmit() {
+        const errors = [];
+        
+        // Check personal data
+        const requiredFields = ['full_name', 'nisn', 'school', 'class', 'birth_date', 'birth_place', 'gender', 'phone', 'address'];
+        requiredFields.forEach(field => {
+            const input = document.querySelector(`[name="${field}"]`);
+            if (!input || !input.value || input.value.trim() === '') {
+                errors.push(`Field ${field.replace('_', ' ')} belum diisi`);
+            }
+        });
+        
+        // Check criteria values
+        const checkedCriteria = document.querySelectorAll('.criteria-input:checked');
+        if (checkedCriteria.length === 0) {
+            errors.push('Belum ada kriteria yang dipilih');
+        }
+        
+        // Check required documents
+        const requiredDocs = ['ktp', 'kk', 'slip_gaji', 'surat_keterangan'];
+        const missingDocs = [];
+        
+        requiredDocs.forEach(docType => {
+            const docRow = document.querySelector(`tr[data-doc-type="${docType}"]`);
+            if (!docRow) {
+                const docNames = {
+                    'ktp': 'KTP Orang Tua',
+                    'kk': 'Kartu Keluarga',
+                    'slip_gaji': 'Slip Gaji',
+                    'surat_keterangan': 'Surat Keterangan'
+                };
+                missingDocs.push(docNames[docType]);
+            }
+        });
+        
+        if (missingDocs.length > 0) {
+            errors.push(`Dokumen belum lengkap: ${missingDocs.join(', ')}`);
+        }
+        
+        return errors;
     }
 
     updateDocumentsTable(document, response) {
-        // Create table if it doesn't exist
-        if ($('#documentsTable').length === 0) {
-            $('#documentsContainer').html(`
+        let documentsContainer = document.getElementById('documentsContainer');
+        let table = document.getElementById('documentsTable');
+        
+        if (!table) {
+            documentsContainer.innerHTML = `
                 <div class="table-responsive">
                     <table class="table table-sm" id="documentsTable">
                         <thead>
@@ -246,34 +380,37 @@ class ApplicationEdit {
                         <tbody id="documentsTableBody"></tbody>
                     </table>
                 </div>
-            `);
+            `;
         }
         
-        // Remove existing row with same document type (replace)
-        $(`tr[data-doc-type="${document.document_type}"]`).remove();
+        // Remove existing row with same document type
+        const existingRow = document.querySelector(`tr[data-doc-type="${document.document_type}"]`);
+        if (existingRow) {
+            existingRow.remove();
+        }
         
-        // Add new row
         const badgeClass = this.getBadgeClass(document.document_type);
-        const newRow = `
-            <tr id="doc_${document.id}" data-doc-type="${document.document_type}">
-                <td><span class="badge ${badgeClass}">${response.document_type_display}</span></td>
-                <td>${document.document_name}</td>
-                <td>${response.file_size_display}</td>
-                <td>${response.created_at_display}</td>
-                <td>
-                    <a href="${response.view_url}" target="_blank" class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-eye"></i>
-                    </a>
-                    <button type="button" class="btn btn-sm btn-outline-danger delete-doc-btn" 
-                            data-doc-id="${document.id}" 
-                            data-delete-url="${response.delete_url}">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
+        const newRow = document.createElement('tr');
+        newRow.id = `doc_${document.id}`;
+        newRow.setAttribute('data-doc-type', document.document_type);
+        newRow.innerHTML = `
+            <td><span class="badge ${badgeClass}">${response.document_type_display}</span></td>
+            <td>${document.document_name}</td>
+            <td>${response.file_size_display}</td>
+            <td>${response.created_at_display}</td>
+            <td>
+                <a href="${response.view_url}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-eye"></i>
+                </a>
+                <button type="button" class="btn btn-sm btn-outline-danger delete-doc-btn" 
+                        data-doc-id="${document.id}" 
+                        data-delete-url="${response.delete_url}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
         `;
         
-        $('#documentsTableBody').append(newRow);
+        document.getElementById('documentsTableBody').appendChild(newRow);
     }
 
     getBadgeClass(documentType) {
@@ -287,228 +424,151 @@ class ApplicationEdit {
     }
 
     updateChecklist(documentType) {
-        const checkElement = $(`#${documentType}-check`);
-        checkElement.addClass('completed');
-        checkElement.find('i')
-            .removeClass('fa-circle text-muted')
-            .addClass('fa-check-circle text-success');
+        const checkElement = document.getElementById(`${documentType}-check`);
+        if (checkElement) {
+            checkElement.classList.add('completed');
+            const icon = checkElement.querySelector('i');
+            if (icon) {
+                icon.className = 'fas fa-check-circle text-success';
+            }
+        }
+    }
+
+    updateCriteriaChecklist() {
+        const checkedCriteria = document.querySelectorAll('.criteria-input:checked');
+        const criteriaCheck = document.getElementById('criteria-check');
+        
+        if (criteriaCheck) {
+            const icon = criteriaCheck.querySelector('i');
+            if (checkedCriteria.length > 0) {
+                criteriaCheck.classList.add('completed');
+                if (icon) {
+                    icon.className = 'fas fa-check-circle text-success';
+                }
+            } else {
+                criteriaCheck.classList.remove('completed');
+                if (icon) {
+                    icon.className = 'fas fa-circle text-muted';
+                }
+            }
+        }
     }
 
     updateChecklistAfterDelete() {
         const docTypes = ['ktp', 'kk', 'slip_gaji', 'surat_keterangan'];
         
         docTypes.forEach(type => {
-            const hasDoc = $(`tr[data-doc-type="${type}"]`).length > 0;
-            const checkElement = $(`#${type}-check`);
+            const hasDoc = document.querySelector(`tr[data-doc-type="${type}"]`) !== null;
+            const checkElement = document.getElementById(`${type}-check`);
             
-            if (hasDoc) {
-                checkElement.addClass('completed');
-                checkElement.find('i')
-                    .removeClass('fa-circle text-muted')
-                    .addClass('fa-check-circle text-success');
-            } else {
-                checkElement.removeClass('completed');
-                checkElement.find('i')
-                    .removeClass('fa-check-circle text-success')
-                    .addClass('fa-circle text-muted');
+            if (checkElement) {
+                const icon = checkElement.querySelector('i');
+                if (hasDoc) {
+                    checkElement.classList.add('completed');
+                    if (icon) {
+                        icon.className = 'fas fa-check-circle text-success';
+                    }
+                } else {
+                    checkElement.classList.remove('completed');
+                    if (icon) {
+                        icon.className = 'fas fa-circle text-muted';
+                    }
+                }
             }
         });
     }
 
     updateSubmitButton() {
-        // Check if all requirements are met
         const requiredDocs = ['ktp', 'kk', 'slip_gaji', 'surat_keterangan'];
         const allDocsUploaded = requiredDocs.every(type => 
-            $(`tr[data-doc-type="${type}"]`).length > 0
+            document.querySelector(`tr[data-doc-type="${type}"]`) !== null
         );
         
-        const hasCriteriaValues = $('input[name^="criteria_values"]:checked').length > 0;
+        const hasCriteriaValues = document.querySelectorAll('.criteria-input:checked').length > 0;
         const canSubmit = allDocsUploaded && hasCriteriaValues;
         
-        const submitBtn = $('#submitBtn');
-        const submitHelp = $('#submitHelp');
+        const submitBtn = document.getElementById('submitApplicationBtn');
+        const submitHelp = document.getElementById('submitHelp');
         
-        if (canSubmit) {
-            submitBtn.prop('disabled', false);
-            submitBtn.removeClass('btn-secondary').addClass('btn-success');
-            if (submitHelp.length) submitHelp.hide();
-        } else {
-            submitBtn.prop('disabled', true);
-            submitBtn.removeClass('btn-success').addClass('btn-secondary');
-            if (submitHelp.length) submitHelp.show();
+        if (submitBtn) {
+            if (canSubmit) {
+                submitBtn.disabled = false;
+                submitBtn.className = submitBtn.className.replace('btn-secondary', 'btn-success');
+                if (submitHelp) submitHelp.style.display = 'none';
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.className = submitBtn.className.replace('btn-success', 'btn-secondary');
+                
+                if (submitHelp) {
+                    submitHelp.style.display = 'block';
+                    
+                    const missingItems = [];
+                    if (!hasCriteriaValues) missingItems.push('pilih kriteria');
+                    if (!allDocsUploaded) {
+                        const missingDocs = requiredDocs.filter(type => 
+                            document.querySelector(`tr[data-doc-type="${type}"]`) === null
+                        );
+                        if (missingDocs.length > 0) {
+                            missingItems.push(`upload ${missingDocs.length} dokumen`);
+                        }
+                    }
+                    
+                    if (missingItems.length > 0) {
+                        submitHelp.textContent = 'Lengkapi: ' + missingItems.join(', ');
+                    }
+                }
+            }
         }
     }
 
-    validateForm() {
-        // Check personal data
-        const requiredFields = ['full_name', 'nisn', 'school', 'class', 'birth_date', 'birth_place', 'gender', 'address', 'phone'];
-        let isValid = true;
-        
-        requiredFields.forEach(field => {
-            const input = $(`[name="${field}"]`);
-            if (!input.val() || input.val().trim() === '') {
-                input.addClass('is-invalid');
-                isValid = false;
-            } else {
-                input.removeClass('is-invalid');
-            }
-        });
-
-        return isValid;
-    }
-
     showAlert(type, message) {
+        const alertIcons = {
+            'success': 'fa-check-circle',
+            'danger': 'fa-exclamation-triangle',
+            'warning': 'fa-exclamation-circle',
+            'info': 'fa-info-circle'
+        };
+        
         const alertHtml = `
             <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-                <i class="fas ${this.getAlertIcon(type)} me-2"></i>
+                <i class="fas ${alertIcons[type] || 'fa-info-circle'} me-2"></i>
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         `;
         
         // Remove existing alerts
-        $('.alert-dismissible').remove();
+        const existingAlerts = document.querySelectorAll('.alert-dismissible');
+        existingAlerts.forEach(alert => alert.remove());
         
-        // Add new alert at top of content
-        $('.steps-progress').closest('.card').after(alertHtml);
+        // Add new alert
+        const stepsProgress = document.querySelector('.steps-progress');
+        if (stepsProgress) {
+            const card = stepsProgress.closest('.card');
+            if (card) {
+                card.insertAdjacentHTML('afterend', alertHtml);
+            }
+        }
         
-        // Auto dismiss after 5 seconds for success/info
+        // Auto dismiss for success/info
         if (type === 'success' || type === 'info') {
             setTimeout(() => {
-                $('.alert-dismissible').fadeOut();
+                const alerts = document.querySelectorAll('.alert-dismissible');
+                alerts.forEach(alert => {
+                    alert.style.transition = 'opacity 0.3s';
+                    alert.style.opacity = '0';
+                    setTimeout(() => alert.remove(), 300);
+                });
             }, 5000);
         }
         
-        // Scroll to top to show alert
-        $('html, body').animate({ scrollTop: 0 }, 300);
-    }
-
-    getAlertIcon(type) {
-        const icons = {
-            'success': 'fa-check-circle',
-            'danger': 'fa-exclamation-triangle',
-            'warning': 'fa-exclamation-circle',
-            'info': 'fa-info-circle'
-        };
-        return icons[type] || 'fa-info-circle';
-    }
-
-    // PERBAIKAN: Utility method to handle upload specifically
-    validateUploadForm() {
-        const documentType = $('#document_type').val();
-        const documentName = $('#document_name').val();
-        const file = $('#file')[0].files[0];
-        
-        if (!documentType || !documentName || !file) {
-            this.showAlert('danger', 'Mohon lengkapi semua field upload');
-            return false;
-        }
-        
-        // Validate file size
-        if (file.size > 2048 * 1024) {
-            this.showAlert('danger', 'Ukuran file maksimal 2MB');
-            return false;
-        }
-        
-        // Validate file type
-        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-        if (!allowedTypes.includes(file.type)) {
-            this.showAlert('danger', 'Tipe file harus PDF, JPG, JPEG, atau PNG');
-            return false;
-        }
-        
-        return true;
-    }
-
-    // Method untuk handle upload dengan validasi yang tepat
-    performUpload() {
-        if (!this.validateUploadForm()) {
-            return;
-        }
-        
-        const formData = new FormData();
-        formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
-        formData.append('document_type', $('#document_type').val());
-        formData.append('document_name', $('#document_name').val());
-        formData.append('file', $('#file')[0].files[0]);
-        
-        // Get upload URL dari route
-        const uploadUrl = $('#mainForm').attr('action') + '/upload';
-        
-        this.setUploadLoading(true);
-        
-        $.ajax({
-            url: uploadUrl,
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            success: (response) => {
-                if (response.success) {
-                    this.handleUploadSuccess(response);
-                } else {
-                    this.showAlert('danger', response.message || 'Upload gagal');
-                }
-            },
-            error: (xhr) => {
-                this.handleUploadError(xhr);
-            },
-            complete: () => {
-                this.setUploadLoading(false);
-            }
-        });
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 }
 
-// Initialize when document is ready
-$(document).ready(function() {
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
     window.applicationEdit = new ApplicationEdit();
-    
-    // PERBAIKAN: Override default form behavior untuk upload
-    $('#uploadBtn').on('click', function(e) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        
-        if (window.applicationEdit) {
-            window.applicationEdit.performUpload();
-        }
-    });
-    
-    // PERBAIKAN: Prevent any form submission dari dalam upload area
-    $('#uploadForm').on('submit', function(e) {
-        e.preventDefault();
-        return false;
-    });
-    
-    // Handle file change untuk preview
-    $('#file').on('change', function() {
-        const file = this.files[0];
-        if (file) {
-            // Optional: Show file preview atau info
-            console.log('File selected:', file.name, 'Size:', formatFileSize(file.size));
-        }
-    });
+    console.log('ApplicationEdit initialized');
 });
-
-// Additional utility functions
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
-
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('id-ID', {
-        day: '2-digit',
-        month: '2-digit', 
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}

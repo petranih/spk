@@ -18,65 +18,123 @@ use Illuminate\Support\Facades\Log;
 
 class ApplicationController extends Controller
 {
-    public function create()
-    {
-        $activePeriod = Period::active()->first();
-        
-        if (!$activePeriod) {
-            return redirect()->route('student.dashboard')
-                ->with('error', 'Tidak ada periode pendaftaran yang aktif');
-        }
-
-        $existingApplication = Application::where('user_id', Auth::id())
-            ->where('period_id', $activePeriod->id)
+public function create(Request $request)
+{
+    // Support pemilihan periode spesifik dari parameter URL
+    $requestedPeriodId = $request->get('period');
+    
+    if ($requestedPeriodId) {
+        // Cari periode yang diminta
+        $selectedPeriod = Period::where('id', $requestedPeriodId)
+            ->where('is_active', true)
             ->first();
-
-        if ($existingApplication) {
-            return redirect()->route('student.application.edit', $existingApplication->id);
+            
+        if (!$selectedPeriod) {
+            return redirect()->route('student.dashboard')
+                ->with('error', 'Periode yang diminta tidak tersedia atau sudah berakhir');
         }
-
-        return view('student.application.create', compact('activePeriod'));
-    }
-
-    public function store(Request $request)
-    {
-        $activePeriod = Period::active()->first();
         
-        if (!$activePeriod) {
+        // Cek apakah periode sedang berlangsung dan bisa menerima aplikasi
+        if (!$selectedPeriod->is_ongoing || !$selectedPeriod->canAcceptApplications()) {
+            return redirect()->route('student.dashboard')
+                ->with('error', 'Periode "' . $selectedPeriod->name . '" tidak sedang menerima pendaftaran');
+        }
+        
+        $targetPeriod = $selectedPeriod;
+    } else {
+        // Fallback ke periode aktif
+        $targetPeriod = Period::active()->first();
+        
+        if (!$targetPeriod) {
             return redirect()->route('student.dashboard')
                 ->with('error', 'Tidak ada periode pendaftaran yang aktif');
         }
-
-        $request->validate([
-            'full_name' => 'required|string|max:255',
-            'nisn' => 'required|string|max:20',
-            'school' => 'required|string|max:255',
-            'class' => 'required|string|max:50',
-            'birth_date' => 'required|date',
-            'birth_place' => 'required|string|max:255',
-            'gender' => 'required|in:L,P',
-            'address' => 'required|string',
-            'phone' => 'required|string|max:20',
-        ]);
-
-        $application = Application::create([
-            'user_id' => Auth::id(),
-            'period_id' => $activePeriod->id,
-            'full_name' => $request->full_name,
-            'nisn' => $request->nisn,
-            'school' => $request->school,
-            'class' => $request->class,
-            'birth_date' => $request->birth_date,
-            'birth_place' => $request->birth_place,
-            'gender' => $request->gender,
-            'address' => $request->address,
-            'phone' => $request->phone,
-            'status' => 'draft',
-        ]);
-
-        return redirect()->route('student.application.edit', $application->id)
-            ->with('success', 'Data aplikasi berhasil disimpan. Silakan lengkapi data kriteria.');
     }
+
+    // Cek apakah user sudah punya aplikasi untuk periode ini
+    $existingApplication = Application::where('user_id', Auth::id())
+        ->where('period_id', $targetPeriod->id)
+        ->first();
+
+    if ($existingApplication) {
+        return redirect()->route('student.application.edit', $existingApplication->id)
+            ->with('info', 'Anda sudah memiliki aplikasi untuk periode "' . $targetPeriod->name . '". Silakan lengkapi data aplikasi Anda.');
+    }
+
+    return view('student.application.create', compact('targetPeriod'));
+}
+
+public function store(Request $request)
+{
+    // PERBAIKAN: Support pemilihan periode dari form atau default ke periode aktif
+    $periodId = $request->input('period_id');
+    
+    if ($periodId) {
+        $targetPeriod = Period::where('id', $periodId)
+            ->where('is_active', true)
+            ->first();
+    } else {
+        $targetPeriod = Period::active()->first();
+    }
+    
+    if (!$targetPeriod) {
+        return redirect()->route('student.dashboard')
+            ->with('error', 'Periode pendaftaran tidak tersedia atau sudah berakhir');
+    }
+
+    // Validasi periode masih bisa menerima aplikasi
+    if (!$targetPeriod->is_ongoing || !$targetPeriod->canAcceptApplications()) {
+        return redirect()->route('student.dashboard')
+            ->with('error', 'Periode "' . $targetPeriod->name . '" tidak sedang menerima pendaftaran');
+    }
+
+    // Cek duplikasi aplikasi untuk periode ini
+    $existingApplication = Application::where('user_id', Auth::id())
+        ->where('period_id', $targetPeriod->id)
+        ->first();
+        
+    if ($existingApplication) {
+        return redirect()->route('student.application.edit', $existingApplication->id)
+            ->with('info', 'Anda sudah memiliki aplikasi untuk periode ini. Silakan lengkapi data aplikasi Anda.');
+    }
+
+    $request->validate([
+        'full_name' => 'required|string|max:255',
+        'nisn' => 'required|string|max:20',
+        'school' => 'required|string|max:255',
+        'class' => 'required|string|max:50',
+        'birth_date' => 'required|date',
+        'birth_place' => 'required|string|max:255',
+        'gender' => 'required|in:L,P',
+        'address' => 'required|string',
+        'phone' => 'required|string|max:20',
+    ]);
+
+    $application = Application::create([
+        'user_id' => Auth::id(),
+        'period_id' => $targetPeriod->id,
+        'full_name' => $request->full_name,
+        'nisn' => $request->nisn,
+        'school' => $request->school,
+        'class' => $request->class,
+        'birth_date' => $request->birth_date,
+        'birth_place' => $request->birth_place,
+        'gender' => $request->gender,
+        'address' => $request->address,
+        'phone' => $request->phone,
+        'status' => 'draft',
+    ]);
+
+    Log::info('New application created', [
+        'application_id' => $application->id,
+        'user_id' => Auth::id(),
+        'period_id' => $targetPeriod->id,
+        'period_name' => $targetPeriod->name
+    ]);
+
+    return redirect()->route('student.application.edit', $application->id)
+        ->with('success', 'Data aplikasi untuk periode "' . $targetPeriod->name . '" berhasil disimpan. Silakan lengkapi data kriteria.');
+}
 
     public function edit(Application $application)
     {
@@ -95,20 +153,19 @@ class ApplicationController extends Controller
             ->orderBy('order')
             ->get();
 
-        // PERBAIKAN: Get existing values dengan logging untuk debug
+        // PERBAIKAN: Get existing values dengan query yang lebih robust
         $existingValues = ApplicationValue::where('application_id', $application->id)
             ->get()
             ->keyBy(function ($item) {
                 return $item->criteria_type . '_' . $item->criteria_id;
             });
 
-        Log::info('Existing values for application ' . $application->id, [
+        Log::info('Loading existing values for application ' . $application->id, [
             'count' => $existingValues->count(),
-            'keys' => $existingValues->keys()->toArray(),
-            'values' => $existingValues->pluck('value', 'criteria_type')->toArray()
+            'keys' => $existingValues->keys()->toArray()
         ]);
 
-        // Load documents dengan proper relation
+        // Load documents
         $documents = ApplicationDocument::where('application_id', $application->id)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -141,102 +198,115 @@ class ApplicationController extends Controller
             'phone' => 'required|string|max:20',
         ]);
 
-        DB::transaction(function () use ($request, $application) {
-            // Update basic information
-            $application->update([
-                'full_name' => $request->full_name,
-                'nisn' => $request->nisn,
-                'school' => $request->school,
-                'class' => $request->class,
-                'birth_date' => $request->birth_date,
-                'birth_place' => $request->birth_place,
-                'gender' => $request->gender,
-                'address' => $request->address,
-                'phone' => $request->phone,
-                'updated_at' => now(),
-            ]);
+        try {
+            DB::transaction(function () use ($request, $application) {
+                // Update basic information
+                $application->update([
+                    'full_name' => $request->full_name,
+                    'nisn' => $request->nisn,
+                    'school' => $request->school,
+                    'class' => $request->class,
+                    'birth_date' => $request->birth_date,
+                    'birth_place' => $request->birth_place,
+                    'gender' => $request->gender,
+                    'address' => $request->address,
+                    'phone' => $request->phone,
+                    'updated_at' => now(),
+                ]);
 
-            // PERBAIKAN: Update criteria values dengan logging dan validasi yang lebih baik
-            Log::info('Processing criteria values', [
-                'application_id' => $application->id,
-                'has_criteria_values' => $request->has('criteria_values'),
-                'criteria_values' => $request->input('criteria_values', [])
-            ]);
+                // PERBAIKAN UTAMA: Proses kriteria dengan lebih hati-hati
+                Log::info('Processing criteria values for update', [
+                    'application_id' => $application->id,
+                    'has_criteria_values' => $request->has('criteria_values'),
+                    'raw_criteria_values' => $request->input('criteria_values', []),
+                    'all_input_keys' => array_keys($request->all())
+                ]);
 
-            if ($request->has('criteria_values') && is_array($request->criteria_values)) {
-                foreach ($request->criteria_values as $criteriaType => $values) {
-                    if (!is_array($values)) {
-                        Log::warning('Invalid criteria values format', [
-                            'criteria_type' => $criteriaType,
-                            'values' => $values
-                        ]);
-                        continue;
-                    }
+                if ($request->has('criteria_values') && is_array($request->criteria_values)) {
+                    // Hapus nilai kriteria lama
+                    ApplicationValue::where('application_id', $application->id)->delete();
 
-                    foreach ($values as $criteriaId => $value) {
-                        Log::info('Processing individual criteria value', [
-                            'criteria_type' => $criteriaType,
-                            'criteria_id' => $criteriaId,
-                            'value' => $value
-                        ]);
-
-                        // Hapus existing value untuk criteria ini
-                        $deletedCount = ApplicationValue::where('application_id', $application->id)
-                            ->where('criteria_type', $criteriaType)
-                            ->where('criteria_id', $criteriaId)
-                            ->delete();
-
-                        Log::info('Deleted existing values', ['count' => $deletedCount]);
-
-                        // Insert new value jika ada dan valid
-                        if (!empty($value) && $value !== '') {
-                            $score = $this->calculateScore($criteriaType, $criteriaId, $value);
-                            
-                            Log::info('Calculated score', [
+                    $createdCount = 0;
+                    
+                    foreach ($request->criteria_values as $criteriaType => $values) {
+                        if (!is_array($values)) {
+                            Log::warning('Invalid criteria values format', [
                                 'criteria_type' => $criteriaType,
-                                'criteria_id' => $criteriaId,
-                                'value' => $value,
-                                'score' => $score
+                                'values' => $values
                             ]);
-                            
-                            // PERBAIKAN: Pastikan score tidak null dan validasi value
-                            if ($score === null || $score < 0) {
-                                $score = 0;
-                                Log::warning('Invalid score calculated, setting to 0', [
+                            continue;
+                        }
+
+                        foreach ($values as $criteriaId => $value) {
+                            if (empty($value) || $value === '' || $value === null) {
+                                Log::info('Skipping empty value', [
                                     'criteria_type' => $criteriaType,
                                     'criteria_id' => $criteriaId,
-                                    'original_score' => $score
+                                    'value' => $value
+                                ]);
+                                continue;
+                            }
+
+                            try {
+                                $score = $this->calculateScore($criteriaType, $criteriaId, $value);
+                                
+                                // Pastikan score valid
+                                if ($score === null || $score < 0) {
+                                    $score = 1; // Default score
+                                }
+                                
+                                $applicationValue = ApplicationValue::create([
+                                    'application_id' => $application->id,
+                                    'criteria_type' => $criteriaType,
+                                    'criteria_id' => $criteriaId,
+                                    'value' => $value,
+                                    'score' => $score,
+                                    'created_at' => now(),
+                                    'updated_at' => now(),
+                                ]);
+
+                                $createdCount++;
+
+                                Log::info('Created application value', [
+                                    'id' => $applicationValue->id,
+                                    'criteria_type' => $criteriaType,
+                                    'criteria_id' => $criteriaId,
+                                    'value' => $value,
+                                    'score' => $score
+                                ]);
+
+                            } catch (\Exception $e) {
+                                Log::error('Error creating application value', [
+                                    'criteria_type' => $criteriaType,
+                                    'criteria_id' => $criteriaId,
+                                    'value' => $value,
+                                    'error' => $e->getMessage()
                                 ]);
                             }
-                            
-                            $applicationValue = ApplicationValue::create([
-                                'application_id' => $application->id,
-                                'criteria_type' => $criteriaType,
-                                'criteria_id' => $criteriaId,
-                                'value' => $value,
-                                'score' => $score,
-                                'created_at' => now(),
-                                'updated_at' => now(),
-                            ]);
-
-                            Log::info('Created application value', [
-                                'id' => $applicationValue->id,
-                                'application_id' => $application->id,
-                                'criteria_type' => $criteriaType,
-                                'criteria_id' => $criteriaId,
-                                'value' => $value,
-                                'score' => $score
-                            ]);
                         }
                     }
+
+                    Log::info('Criteria values update completed', [
+                        'application_id' => $application->id,
+                        'created_count' => $createdCount
+                    ]);
+                } else {
+                    Log::warning('No criteria values in request', [
+                        'has_criteria_values' => $request->has('criteria_values'),
+                        'criteria_values_type' => gettype($request->input('criteria_values'))
+                    ]);
                 }
-            } else {
-                Log::warning('No criteria values found in request', [
-                    'application_id' => $application->id,
-                    'request_data' => $request->all()
-                ]);
-            }
-        });
+            });
+
+        } catch (\Exception $e) {
+            Log::error('Error updating application: ' . $e->getMessage(), [
+                'application_id' => $application->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return redirect()->route('student.application.edit', $application->id)
+                ->with('error', 'Terjadi kesalahan saat menyimpan data. Silakan coba lagi.');
+        }
 
         return redirect()->route('student.application.edit', $application->id)
             ->with('success', 'Data aplikasi berhasil diperbarui');
@@ -253,7 +323,6 @@ class ApplicationController extends Controller
             return response()->json(['success' => false, 'message' => 'Aplikasi yang sudah disubmit tidak dapat diubah'], 422);
         }
 
-        // PERBAIKAN: Validasi yang lebih ketat
         $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'document_type' => 'required|string|in:ktp,kk,slip_gaji,surat_keterangan',
             'document_name' => 'required|string|max:255',
@@ -268,7 +337,7 @@ class ApplicationController extends Controller
         }
 
         try {
-            // Cek apakah sudah ada dokumen dengan tipe yang sama
+            // Cek dokumen existing
             $existingDoc = ApplicationDocument::where('application_id', $application->id)
                 ->where('document_type', $request->document_type)
                 ->first();
@@ -282,19 +351,14 @@ class ApplicationController extends Controller
             }
 
             $file = $request->file('file');
-            
-            // PERBAIKAN: Pastikan directory exists
             $directory = 'documents/' . $application->id;
             Storage::disk('public')->makeDirectory($directory);
             
-            // Generate unique filename dengan timestamp
             $extension = $file->getClientOriginalExtension();
             $filename = $request->document_type . '_' . time() . '_' . uniqid() . '.' . $extension;
             
-            // Store file
             $path = $file->storeAs($directory, $filename, 'public');
 
-            // PERBAIKAN: Validasi apakah file benar-benar tersimpan
             if (!Storage::disk('public')->exists($path)) {
                 throw new \Exception('File gagal disimpan ke storage');
             }
@@ -309,7 +373,6 @@ class ApplicationController extends Controller
                 'original_name' => $file->getClientOriginalName(),
             ]);
 
-            // Return response untuk AJAX
             return response()->json([
                 'success' => true,
                 'message' => 'Dokumen berhasil diupload',
@@ -333,7 +396,6 @@ class ApplicationController extends Controller
 
     public function deleteDocument(Request $request, Application $application, ApplicationDocument $document)
     {
-        // Security checks
         if ($application->user_id !== Auth::id() || $document->application_id !== $application->id) {
             if ($request->ajax()) {
                 return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
@@ -350,12 +412,10 @@ class ApplicationController extends Controller
         }
 
         try {
-            // Delete file from storage
             if (Storage::disk('public')->exists($document->file_path)) {
                 Storage::disk('public')->delete($document->file_path);
             }
             
-            // Delete record from database
             $document->delete();
 
             if ($request->ajax()) {
@@ -395,111 +455,132 @@ class ApplicationController extends Controller
                 ->with('error', 'Aplikasi tidak dapat disubmit');
         }
 
-        // Comprehensive validation before submit
-        $validationErrors = [];
-
-        // Check personal data completeness
-        if (!$application->full_name || !$application->nisn || !$application->school || 
-            !$application->class || !$application->birth_date || !$application->birth_place ||
-            !$application->gender || !$application->address || !$application->phone) {
-            $validationErrors[] = 'Data pribadi belum lengkap';
-        }
-
-        // PERBAIKAN: Check criteria values dengan logging
-        $applicationValues = ApplicationValue::where('application_id', $application->id)->get();
-        Log::info('Validation check for application values', [
-            'application_id' => $application->id,
-            'values_count' => $applicationValues->count(),
-            'values' => $applicationValues->pluck('score', 'criteria_type')->toArray()
-        ]);
-
-        if ($applicationValues->count() == 0) {
-            $validationErrors[] = 'Data kriteria AHP belum diisi';
-        } else {
-            // Cek apakah semua nilai memiliki score > 0
-            $validValues = $applicationValues->where('score', '>', 0)->count();
-            $totalValues = $applicationValues->count();
-            
-            Log::info('Criteria values validation', [
-                'valid_values' => $validValues,
-                'total_values' => $totalValues
-            ]);
-            
-            if ($validValues == 0) {
-                $validationErrors[] = 'Semua nilai kriteria masih 0, silakan periksa kembali pilihan Anda';
-            }
-        }
-
-        // Validate required documents
-        $requiredDocuments = ['ktp', 'kk', 'slip_gaji', 'surat_keterangan'];
-        $existingDocs = ApplicationDocument::where('application_id', $application->id)
-            ->pluck('document_type')
-            ->toArray();
-
-        $missingDocs = array_diff($requiredDocuments, $existingDocs);
-        if (!empty($missingDocs)) {
-            $docNames = [
-                'ktp' => 'KTP Orang Tua',
-                'kk' => 'Kartu Keluarga', 
-                'slip_gaji' => 'Slip Gaji/Surat Keterangan Penghasilan',
-                'surat_keterangan' => 'Surat Keterangan Tidak Mampu'
-            ];
-            
-            $missingDocNames = array_map(function($doc) use ($docNames) {
-                return $docNames[$doc];
-            }, $missingDocs);
-            
-            $validationErrors[] = 'Dokumen yang belum diupload: ' . implode(', ', $missingDocNames);
-        }
-
-        // If there are validation errors, return with errors
-        if (!empty($validationErrors)) {
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Aplikasi belum dapat disubmit: ' . implode('; ', $validationErrors)
-                ], 422);
-            }
-            return redirect()->route('student.application.edit', $application->id)
-                ->with('error', 'Aplikasi belum dapat disubmit: ' . implode('; ', $validationErrors));
-        }
-
         try {
+            $validationErrors = [];
+
+            // Check personal data
+            if (!$application->full_name || !$application->nisn || !$application->school || 
+                !$application->class || !$application->birth_date || !$application->birth_place ||
+                !$application->gender || !$application->address || !$application->phone) {
+                $validationErrors[] = 'Data pribadi belum lengkap';
+            }
+
+            // PERBAIKAN: Check criteria values dengan query fresh
+            $applicationValues = ApplicationValue::where('application_id', $application->id)->get();
+            
+            Log::info('Submit validation - criteria check', [
+                'application_id' => $application->id,
+                'values_count' => $applicationValues->count(),
+                'values_detail' => $applicationValues->map(function($val) {
+                    return [
+                        'criteria_type' => $val->criteria_type,
+                        'criteria_id' => $val->criteria_id,
+                        'value' => $val->value,
+                        'score' => $val->score
+                    ];
+                })->toArray()
+            ]);
+
+            if ($applicationValues->count() == 0) {
+                $validationErrors[] = 'Data kriteria AHP belum diisi';
+            } else {
+                $validValues = $applicationValues->filter(function($val) {
+                    return $val->score !== null && $val->score >= 0;
+                });
+                
+                if ($validValues->count() == 0) {
+                    $validationErrors[] = 'Semua kriteria memiliki nilai tidak valid';
+                }
+            }
+
+            // Check documents
+            $requiredDocuments = ['ktp', 'kk', 'slip_gaji', 'surat_keterangan'];
+            $existingDocs = ApplicationDocument::where('application_id', $application->id)
+                ->pluck('document_type')
+                ->toArray();
+
+            $missingDocs = array_diff($requiredDocuments, $existingDocs);
+            if (!empty($missingDocs)) {
+                $docNames = [
+                    'ktp' => 'KTP Orang Tua',
+                    'kk' => 'Kartu Keluarga', 
+                    'slip_gaji' => 'Slip Gaji/Surat Keterangan Penghasilan',
+                    'surat_keterangan' => 'Surat Keterangan Tidak Mampu'
+                ];
+                
+                $missingDocNames = array_map(function($doc) use ($docNames) {
+                    return $docNames[$doc];
+                }, $missingDocs);
+                
+                $validationErrors[] = 'Dokumen yang belum diupload: ' . implode(', ', $missingDocNames);
+            }
+
+            // If validation fails
+            if (!empty($validationErrors)) {
+                Log::warning('Application submission failed validation', [
+                    'application_id' => $application->id,
+                    'errors' => $validationErrors
+                ]);
+
+                if ($request->ajax()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Aplikasi belum dapat disubmit',
+                        'errors' => $validationErrors,
+                        'detailed_message' => implode('; ', $validationErrors)
+                    ], 422);
+                }
+                return redirect()->route('student.application.edit', $application->id)
+                    ->with('error', 'Aplikasi belum dapat disubmit: ' . implode('; ', $validationErrors));
+            }
+
+            // Submit aplikasi
             DB::transaction(function() use ($application) {
                 $application->update([
                     'status' => 'submitted',
                     'submitted_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                Log::info('Application submitted successfully', [
+                    'application_id' => $application->id,
+                    'user_id' => $application->user_id,
+                    'submitted_at' => $application->submitted_at
                 ]);
             });
 
             if ($request->ajax()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Aplikasi berhasil disubmit untuk validasi'
+                    'message' => 'Aplikasi berhasil disubmit untuk validasi',
+                    'redirect_url' => route('student.dashboard')
                 ]);
             }
 
             return redirect()->route('student.dashboard')
-                ->with('success', 'Aplikasi berhasil disubmit untuk validasi. Silakan tunggu proses validasi dari administrator.');
+                ->with('success', 'Aplikasi berhasil disubmit untuk validasi.');
                 
         } catch (\Exception $e) {
-            Log::error('Application submission failed: ' . $e->getMessage());
+            Log::error('Application submission failed', [
+                'application_id' => $application->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Gagal submit aplikasi. Silakan coba lagi.'
+                    'message' => 'Gagal submit aplikasi: ' . $e->getMessage()
                 ], 500);
             }
             
             return redirect()->route('student.application.edit', $application->id)
-                ->with('error', 'Gagal submit aplikasi. Silakan coba lagi.');
+                ->with('error', 'Gagal submit aplikasi: ' . $e->getMessage());
         }
     }
 
     private function calculateScore($criteriaType, $criteriaId, $value)
     {
-        // PERBAIKAN: Logic perhitungan score yang lebih akurat dengan fallback
         try {
             Log::info('Calculating score', [
                 'criteria_type' => $criteriaType,
@@ -508,64 +589,42 @@ class ApplicationController extends Controller
             ]);
 
             if ($criteriaType === 'criteria') {
-                // Untuk criteria langsung, value mungkin adalah ID dari subcriteria atau nilai langsung
-                if (is_numeric($value)) {
-                    $criteria = Criteria::find($criteriaId);
-                    if ($criteria && isset($criteria->score)) {
-                        return $criteria->score;
-                    }
+                $criteria = Criteria::find($criteriaId);
+                if ($criteria && isset($criteria->score)) {
+                    return $criteria->score;
                 }
-                return 1; // Default score untuk criteria
+                return 1;
                 
             } elseif ($criteriaType === 'subcriteria') {
-                // Value adalah ID dari SubSubCriteria atau nilai langsung
                 if (is_numeric($value)) {
-                    // Coba cari sebagai SubSubCriteria ID first
+                    // Value is SubSubCriteria ID
                     $subSubCriteria = SubSubCriteria::find($value);
                     if ($subSubCriteria) {
-                        Log::info('Found SubSubCriteria', [
-                            'id' => $subSubCriteria->id,
-                            'score' => $subSubCriteria->score
-                        ]);
                         return $subSubCriteria->score ?? 1;
                     }
                     
-                    // Jika tidak, ambil score dari SubCriteria
+                    // Or SubCriteria itself
                     $subCriteria = SubCriteria::find($criteriaId);
                     if ($subCriteria) {
-                        Log::info('Found SubCriteria', [
-                            'id' => $subCriteria->id,
-                            'score' => $subCriteria->score
-                        ]);
                         return $subCriteria->score ?? 1;
                     }
                 }
-                return 1; // Default score
+                return 1;
                 
             } elseif ($criteriaType === 'subsubcriteria') {
-                // Untuk subsubcriteria, value adalah pilihan atau ID
                 if (is_numeric($value)) {
                     $subSubCriteria = SubSubCriteria::find($value);
                     if ($subSubCriteria) {
-                        Log::info('Found SubSubCriteria for direct lookup', [
-                            'id' => $subSubCriteria->id,
-                            'score' => $subSubCriteria->score
-                        ]);
                         return $subSubCriteria->score ?? 1;
                     }
                 }
                 
-                // Jika value bukan ID, coba cari berdasarkan criteria_id
                 $subSubCriteria = SubSubCriteria::find($criteriaId);
                 if ($subSubCriteria) {
-                    Log::info('Found SubSubCriteria by criteria_id', [
-                        'id' => $subSubCriteria->id,
-                        'score' => $subSubCriteria->score
-                    ]);
                     return $subSubCriteria->score ?? 1;
                 }
                 
-                return 1; // Default score
+                return 1;
             }
         } catch (\Exception $e) {
             Log::error('Error calculating score: ' . $e->getMessage(), [
@@ -575,7 +634,7 @@ class ApplicationController extends Controller
             ]);
         }
 
-        return 1; // Default fallback score
+        return 1; // Default score
     }
 
     private function getDocumentTypeDisplay($type)

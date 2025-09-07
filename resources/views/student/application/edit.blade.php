@@ -33,7 +33,8 @@
     </div>
 </div>
 
-<form id="mainForm" action="{{ route('student.application.update', $application->id) }}" method="POST">
+<!-- PERBAIKAN UTAMA: Satu form untuk semua data -->
+<form id="mainApplicationForm" action="{{ route('student.application.update', $application->id) }}" method="POST">
     @csrf
     @method('PUT')
     
@@ -126,7 +127,7 @@
                                 <label for="gender" class="form-label">Jenis Kelamin</label>
                                 <select class="form-select @error('gender') is-invalid @enderror" 
                                         id="gender" name="gender" required>
-                                    <option value="">Pilih Jenis Kelamin</option>
+                                        <option value="">Pilih Jenis Kelamin</option>
                                     <option value="L" {{ old('gender', $application->gender) == 'L' ? 'selected' : '' }}>Laki-laki</option>
                                     <option value="P" {{ old('gender', $application->gender) == 'P' ? 'selected' : '' }}>Perempuan</option>
                                 </select>
@@ -159,7 +160,7 @@
                 </div>
             </div>
             
-            <!-- PERBAIKAN: Criteria Section dengan logic yang diperbaiki -->
+            <!-- PERBAIKAN: Criteria Section dengan input form yang benar -->
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">
@@ -192,25 +193,23 @@
                                                     </label>
                                                     
                                                     <div class="row">
-                                                        @foreach($subCriteria->subSubCriterias->chunk(2) as $chunk)
-                                                            @foreach($chunk as $subSubCriteria)
-                                                                <div class="col-md-6">
-                                                                    <div class="form-check mb-2">
-                                                                        <input class="form-check-input" 
-                                                                               type="radio" 
-                                                                               name="criteria_values[subsubcriteria][{{ $subCriteria->id }}]" 
-                                                                               id="subsubcriteria_{{ $subSubCriteria->id }}"
-                                                                               value="{{ $subSubCriteria->id }}"
-                                                                               {{ isset($existingValues['subsubcriteria_' . $subCriteria->id]) && $existingValues['subsubcriteria_' . $subCriteria->id]->value == $subSubCriteria->id ? 'checked' : '' }}>
-                                                                        <label class="form-check-label" for="subsubcriteria_{{ $subSubCriteria->id }}">
-                                                                            {{ $subSubCriteria->name }}
-                                                                            @if($subSubCriteria->score)
-                                                                                <small class="text-muted">(Skor: {{ $subSubCriteria->score }})</small>
-                                                                            @endif
-                                                                        </label>
-                                                                    </div>
+                                                        @foreach($subCriteria->subSubCriterias as $subSubCriteria)
+                                                            <div class="col-md-6">
+                                                                <div class="form-check mb-2">
+                                                                    <input class="form-check-input criteria-input" 
+                                                                           type="radio" 
+                                                                           name="criteria_values[subsubcriteria][{{ $subCriteria->id }}]" 
+                                                                           id="subsubcriteria_{{ $subSubCriteria->id }}"
+                                                                           value="{{ $subSubCriteria->id }}"
+                                                                           {{ isset($existingValues['subsubcriteria_' . $subCriteria->id]) && $existingValues['subsubcriteria_' . $subCriteria->id]->value == $subSubCriteria->id ? 'checked' : '' }}>
+                                                                    <label class="form-check-label" for="subsubcriteria_{{ $subSubCriteria->id }}">
+                                                                        {{ $subSubCriteria->name }}
+                                                                        @if($subSubCriteria->score)
+                                                                            <small class="text-muted">(Skor: {{ $subSubCriteria->score }})</small>
+                                                                        @endif
+                                                                    </label>
                                                                 </div>
-                                                            @endforeach
+                                                            </div>
                                                         @endforeach
                                                     </div>
                                                 </div>
@@ -218,32 +217,30 @@
                                             @endif
                                         @endforeach
                                     @else
-                                        {{-- PERBAIKAN: Tidak ada subsubcriteria, langsung pilih dari subcriteria --}}
+                                        {{-- Tidak ada subsubcriteria, langsung pilih dari subcriteria --}}
                                         <div class="subcriteria-section">
                                             <label class="form-label fw-semibold mb-3">
                                                 Pilih {{ $criteria->name }}:
                                             </label>
                                             
                                             <div class="row">
-                                                @foreach($criteria->subCriterias->chunk(2) as $chunk)
-                                                    @foreach($chunk as $subCriteria)
-                                                        <div class="col-md-6">
-                                                            <div class="form-check mb-2">
-                                                                <input class="form-check-input" 
-                                                                       type="radio" 
-                                                                       name="criteria_values[subcriteria][{{ $criteria->id }}]" 
-                                                                       id="subcriteria_{{ $subCriteria->id }}"
-                                                                       value="{{ $subCriteria->id }}"
-                                                                       {{ isset($existingValues['subcriteria_' . $criteria->id]) && $existingValues['subcriteria_' . $criteria->id]->value == $subCriteria->id ? 'checked' : '' }}>
-                                                                <label class="form-check-label" for="subcriteria_{{ $subCriteria->id }}">
-                                                                    {{ $subCriteria->name }}
-                                                                    @if($subCriteria->score)
-                                                                        <small class="text-muted">(Skor: {{ $subCriteria->score }})</small>
-                                                                    @endif
-                                                                </label>
-                                                            </div>
+                                                @foreach($criteria->subCriterias as $subCriteria)
+                                                    <div class="col-md-6">
+                                                        <div class="form-check mb-2">
+                                                            <input class="form-check-input criteria-input" 
+                                                                   type="radio" 
+                                                                   name="criteria_values[subcriteria][{{ $criteria->id }}]" 
+                                                                   id="subcriteria_{{ $subCriteria->id }}"
+                                                                   value="{{ $subCriteria->id }}"
+                                                                   {{ isset($existingValues['subcriteria_' . $criteria->id]) && $existingValues['subcriteria_' . $criteria->id]->value == $subCriteria->id ? 'checked' : '' }}>
+                                                            <label class="form-check-label" for="subcriteria_{{ $subCriteria->id }}">
+                                                                {{ $subCriteria->name }}
+                                                                @if($subCriteria->score)
+                                                                    <small class="text-muted">(Skor: {{ $subCriteria->score }})</small>
+                                                                @endif
+                                                            </label>
                                                         </div>
-                                                    @endforeach
+                                                    </div>
                                                 @endforeach
                                             </div>
                                         </div>
@@ -264,7 +261,7 @@
                 </div>
             </div>
             
-            <!-- PERBAIKAN: Document Upload Section dengan form terpisah -->
+            <!-- Document Upload Section - AJAX Upload -->
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">
@@ -272,50 +269,48 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <!-- Upload Form dengan AJAX - FORM TERPISAH -->
-                    <div class="border p-3 rounded bg-light mb-3">
-                        <div id="uploadForm">
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label for="document_type" class="form-label">Jenis Dokumen</label>
-                                        <select class="form-select" id="document_type" name="document_type" required>
-                                            <option value="">Pilih Jenis</option>
-                                            <option value="ktp">KTP Orang Tua</option>
-                                            <option value="kk">Kartu Keluarga</option>
-                                            <option value="slip_gaji">Slip Gaji / Surat Keterangan Penghasilan</option>
-                                            <option value="surat_keterangan">Surat Keterangan Tidak Mampu</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label for="document_name" class="form-label">Nama Dokumen</label>
-                                        <input type="text" class="form-control" id="document_name" name="document_name" required>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label for="file" class="form-label">File</label>
-                                        <input type="file" class="form-control" id="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required>
-                                        <small class="text-muted">Max 2MB, format: PDF, JPG, PNG</small>
-                                    </div>
+                    <!-- PERBAIKAN: Upload form menggunakan AJAX, terpisah dari main form -->
+                    <div class="border p-3 rounded bg-light mb-3" id="uploadSection">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="document_type" class="form-label">Jenis Dokumen</label>
+                                    <select class="form-select" id="document_type" required>
+                                        <option value="">Pilih Jenis</option>
+                                        <option value="ktp">KTP Orang Tua</option>
+                                        <option value="kk">Kartu Keluarga</option>
+                                        <option value="slip_gaji">Slip Gaji / Surat Keterangan Penghasilan</option>
+                                        <option value="surat_keterangan">Surat Keterangan Tidak Mampu</option>
+                                    </select>
                                 </div>
                             </div>
-                            <button type="button" class="btn btn-sm btn-success" id="uploadBtn">
-                                <i class="fas fa-upload me-1"></i>Upload
-                            </button>
-                            <div id="uploadProgress" class="mt-2" style="display: none;">
-                                <div class="progress">
-                                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                                         role="progressbar" style="width: 100%"></div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="document_name" class="form-label">Nama Dokumen</label>
+                                    <input type="text" class="form-control" id="document_name" required>
                                 </div>
-                                <small class="text-muted">Uploading...</small>
                             </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="file" class="form-label">File</label>
+                                    <input type="file" class="form-control" id="file" accept=".pdf,.jpg,.jpeg,.png" required>
+                                    <small class="text-muted">Max 2MB, format: PDF, JPG, PNG</small>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-success" id="uploadBtn">
+                            <i class="fas fa-upload me-1"></i>Upload
+                        </button>
+                        <div id="uploadProgress" class="mt-2" style="display: none;">
+                            <div class="progress">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" style="width: 100%"></div>
+                            </div>
+                            <small class="text-muted">Uploading...</small>
                         </div>
                     </div>
                     
-                    <!-- Uploaded Documents List -->
+                    <!-- Documents List -->
                     <div id="documentsContainer">
                         @if($documents->count() > 0)
                             <div class="table-responsive">
@@ -428,7 +423,7 @@
                             <i class="fas {{ $application->full_name ? 'fa-check-circle text-success' : 'fa-circle text-muted' }}"></i>
                             Data pribadi lengkap
                         </div>
-                        <div class="checklist-item {{ count($existingValues) > 0 ? 'completed' : '' }}">
+                        <div class="checklist-item {{ count($existingValues) > 0 ? 'completed' : '' }}" id="criteria-check">
                             <i class="fas {{ count($existingValues) > 0 ? 'fa-check-circle text-success' : 'fa-circle text-muted' }}"></i>
                             Data kriteria terisi
                         </div>
@@ -456,7 +451,8 @@
             <div class="card">
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <button type="submit" form="mainForm" class="btn btn-primary">
+                        <!-- PERBAIKAN: Button untuk save data utama -->
+                        <button type="submit" form="mainApplicationForm" class="btn btn-primary" id="saveBtn">
                             <i class="fas fa-save me-2"></i>Simpan Perubahan
                         </button>
                         
@@ -468,15 +464,13 @@
                             @endphp
                             
                             <div id="submitSection">
-                                @if($canSubmit)
-                                    <button type="button" class="btn btn-success w-100" id="submitApplicationBtn" 
-                                            data-url="{{ route('student.application.submit', $application->id) }}">
-                                        <i class="fas fa-paper-plane me-2"></i>Submit Aplikasi
-                                    </button>
-                                @else
-                                    <button type="button" class="btn btn-secondary w-100" disabled id="submitApplicationBtn">
-                                        <i class="fas fa-paper-plane me-2"></i>Submit Aplikasi
-                                    </button>
+                                <button type="button" class="btn btn-success w-100" 
+                                        id="submitApplicationBtn" 
+                                        data-url="{{ route('student.application.submit', $application->id) }}"
+                                        {{ !$canSubmit ? 'disabled' : '' }}>
+                                    <i class="fas fa-paper-plane me-2"></i>Submit Aplikasi
+                                </button>
+                                @if(!$canSubmit)
                                     <small class="text-muted mt-1 d-block" id="submitHelp">
                                         Lengkapi semua data dan upload semua dokumen untuk dapat submit
                                     </small>
@@ -585,9 +579,9 @@
     color: #28a745;
 }
 
-.upload-loading {
-    opacity: 0.6;
-    pointer-events: none;
+.criteria-input:checked + label {
+    font-weight: 500;
+    color: #007bff;
 }
 </style>
 @endpush
@@ -595,7 +589,7 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // PERBAIKAN: Auto-fill document name berdasarkan jenis dokumen
+    // Auto-fill document name berdasarkan jenis dokumen
     $('#document_type').on('change', function() {
         const type = $(this).val();
         const documentNames = {
@@ -610,11 +604,10 @@ $(document).ready(function() {
         }
     });
 
-    // PERBAIKAN: Upload dengan AJAX menggunakan button click
+    // PERBAIKAN: Upload dokumen dengan AJAX
     $('#uploadBtn').on('click', function(e) {
         e.preventDefault();
         
-        // Validasi form
         const documentType = $('#document_type').val();
         const documentName = $('#document_name').val();
         const file = $('#file')[0].files[0];
@@ -624,29 +617,26 @@ $(document).ready(function() {
             return;
         }
         
-        // Validasi file size
         if (file.size > 2048 * 1024) {
             showAlert('danger', 'Ukuran file maksimal 2MB');
             return;
         }
         
-        // Validasi file type
         const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
         if (!allowedTypes.includes(file.type)) {
             showAlert('danger', 'Tipe file harus PDF, JPG, JPEG, atau PNG');
             return;
         }
         
-        let formData = new FormData();
+        const formData = new FormData();
         formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
         formData.append('document_type', documentType);
         formData.append('document_name', documentName);
         formData.append('file', file);
         
-        let uploadBtn = $('#uploadBtn');
-        let uploadProgress = $('#uploadProgress');
+        const uploadBtn = $('#uploadBtn');
+        const uploadProgress = $('#uploadProgress');
         
-        // Show loading state
         uploadBtn.prop('disabled', true);
         uploadBtn.html('<i class="fas fa-spinner fa-spin me-1"></i>Uploading...');
         uploadProgress.show();
@@ -657,26 +647,17 @@ $(document).ready(function() {
             data: formData,
             processData: false,
             contentType: false,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
             success: function(response) {
                 if (response.success) {
-                    // Reset upload form SAJA
+                    // Reset upload form
                     $('#document_type').val('');
                     $('#document_name').val('');
                     $('#file').val('');
                     
-                    // Update documents table
                     updateDocumentsTable(response.document, response);
-                    
-                    // Update checklist
                     updateChecklist(response.document.document_type);
-                    
-                    // Update submit button status
                     updateSubmitButton();
                     
-                    // Show success message
                     showAlert('success', response.message);
                 } else {
                     showAlert('danger', response.message || 'Upload gagal');
@@ -686,14 +667,10 @@ $(document).ready(function() {
                 let message = 'Upload gagal. Silakan coba lagi.';
                 if (xhr.responseJSON && xhr.responseJSON.message) {
                     message = xhr.responseJSON.message;
-                } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                    let errors = Object.values(xhr.responseJSON.errors).flat();
-                    message = errors.join(', ');
                 }
                 showAlert('danger', message);
             },
             complete: function() {
-                // Reset loading state
                 uploadBtn.prop('disabled', false);
                 uploadBtn.html('<i class="fas fa-upload me-1"></i>Upload');
                 uploadProgress.hide();
@@ -701,7 +678,7 @@ $(document).ready(function() {
         });
     });
     
-    // AJAX Delete Document
+    // Delete document
     $(document).on('click', '.delete-doc-btn', function(e) {
         e.preventDefault();
         
@@ -709,9 +686,9 @@ $(document).ready(function() {
             return;
         }
         
-        let docId = $(this).data('doc-id');
-        let deleteUrl = $(this).data('delete-url');
-        let btn = $(this);
+        const docId = $(this).data('doc-id');
+        const deleteUrl = $(this).data('delete-url');
+        const btn = $(this);
         
         btn.prop('disabled', true);
         btn.html('<i class="fas fa-spinner fa-spin"></i>');
@@ -720,16 +697,13 @@ $(document).ready(function() {
             url: deleteUrl,
             type: 'DELETE',
             headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
             success: function(response) {
                 if (response.success) {
-                    // Remove row from table
                     $('#doc_' + docId).fadeOut(300, function() {
                         $(this).remove();
                         
-                        // Check if table is empty
                         if ($('#documentsTableBody tr').length === 0) {
                             $('#documentsContainer').html(`
                                 <div class="text-center text-muted" id="emptyDocuments">
@@ -740,16 +714,14 @@ $(document).ready(function() {
                         }
                     });
                     
-                    // Update checklist and submit button
                     updateChecklistAfterDelete();
                     updateSubmitButton();
-                    
                     showAlert('success', response.message);
                 } else {
                     showAlert('danger', response.message || 'Gagal menghapus dokumen');
                 }
             },
-            error: function(xhr) {
+            error: function() {
                 showAlert('danger', 'Gagal menghapus dokumen. Silakan coba lagi.');
             },
             complete: function() {
@@ -759,8 +731,74 @@ $(document).ready(function() {
         });
     });
     
+    // PERBAIKAN: Handle submit aplikasi
+    $('#submitApplicationBtn').on('click', function(e) {
+        e.preventDefault();
+        
+        if ($(this).prop('disabled')) {
+            showAlert('warning', 'Pastikan semua data sudah lengkap sebelum submit');
+            return;
+        }
+        
+        if (!confirm('Yakin ingin submit aplikasi?\n\nSetelah disubmit, Anda tidak dapat mengubah data lagi.')) {
+            return;
+        }
+        
+        const submitUrl = $(this).data('url');
+        const btn = $(this);
+        
+        btn.prop('disabled', true);
+        btn.html('<i class="fas fa-spinner fa-spin me-2"></i>Submitting...');
+        
+        $.ajax({
+            url: submitUrl,
+            type: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                if (response.success) {
+                    showAlert('success', response.message + ' Redirecting...');
+                    
+                    setTimeout(function() {
+                        window.location.href = response.redirect_url || '{{ route("student.dashboard") }}';
+                    }, 2000);
+                } else {
+                    showAlert('danger', response.message || 'Gagal submit aplikasi');
+                    btn.prop('disabled', false);
+                    btn.html('<i class="fas fa-paper-plane me-2"></i>Submit Aplikasi');
+                }
+            },
+            error: function(xhr) {
+                let message = 'Gagal submit aplikasi. Silakan coba lagi.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    message = xhr.responseJSON.message;
+                }
+                showAlert('danger', message);
+                btn.prop('disabled', false);
+                btn.html('<i class="fas fa-paper-plane me-2"></i>Submit Aplikasi');
+            }
+        });
+    });
+    
+    // PERBAIKAN: Update checklist criteria saat input berubah
+    $('.criteria-input').on('change', function() {
+        const checkedCriteria = $('.criteria-input:checked').length;
+        const criteriaCheck = $('#criteria-check');
+        
+        if (checkedCriteria > 0) {
+            criteriaCheck.addClass('completed');
+            criteriaCheck.find('i').removeClass('fa-circle text-muted').addClass('fa-check-circle text-success');
+        } else {
+            criteriaCheck.removeClass('completed');
+            criteriaCheck.find('i').removeClass('fa-check-circle text-success').addClass('fa-circle text-muted');
+        }
+        
+        updateSubmitButton();
+    });
+    
+    // Helper functions
     function updateDocumentsTable(document, response) {
-        // Jika table belum ada, buat table
         if ($('#documentsTable').length === 0) {
             $('#documentsContainer').html(`
                 <div class="table-responsive">
@@ -780,12 +818,12 @@ $(document).ready(function() {
             `);
         }
         
-        // Remove existing row with same document type (replace)
-        $('tr[data-doc-type="' + document.document_type + '"]').remove();
+        // Remove existing row with same document type
+        $(`tr[data-doc-type="${document.document_type}"]`).remove();
         
         // Add new row
-        let badgeClass = getBadgeClass(document.document_type);
-        let newRow = `
+        const badgeClass = getBadgeClass(document.document_type);
+        const newRow = `
             <tr id="doc_${document.id}" data-doc-type="${document.document_type}">
                 <td><span class="badge ${badgeClass}">${response.document_type_display}</span></td>
                 <td>${document.document_name}</td>
@@ -818,46 +856,45 @@ $(document).ready(function() {
     }
     
     function updateChecklist(documentType) {
-        let checkElement = $('#' + documentType + '-check');
+        const checkElement = $(`#${documentType}-check`);
         checkElement.addClass('completed');
-        checkElement.find('i').removeClass('fa-circle text-muted').addClass('fa-check-circle text-success');
+        checkElement.find('i')
+            .removeClass('fa-circle text-muted')
+            .addClass('fa-check-circle text-success');
     }
     
     function updateChecklistAfterDelete() {
-        // Re-check all document types
-        let docTypes = ['ktp', 'kk', 'slip_gaji', 'surat_keterangan'];
+        const docTypes = ['ktp', 'kk', 'slip_gaji', 'surat_keterangan'];
         
-        docTypes.forEach(function(type) {
-            let hasDoc = $('tr[data-doc-type="' + type + '"]').length > 0;
-            let checkElement = $('#' + type + '-check');
+        docTypes.forEach(type => {
+            const hasDoc = $(`tr[data-doc-type="${type}"]`).length > 0;
+            const checkElement = $(`#${type}-check`);
             
             if (hasDoc) {
                 checkElement.addClass('completed');
-                checkElement.find('i').removeClass('fa-circle text-muted').addClass('fa-check-circle text-success');
+                checkElement.find('i')
+                    .removeClass('fa-circle text-muted')
+                    .addClass('fa-check-circle text-success');
             } else {
                 checkElement.removeClass('completed');
-                checkElement.find('i').removeClass('fa-check-circle text-success').addClass('fa-circle text-muted');
+                checkElement.find('i')
+                    .removeClass('fa-check-circle text-success')
+                    .addClass('fa-circle text-muted');
             }
         });
     }
     
     function updateSubmitButton() {
-        // Check if all requirements are met
-        let requiredDocs = ['ktp', 'kk', 'slip_gaji', 'surat_keterangan'];
-        let allDocsUploaded = true;
+        const requiredDocs = ['ktp', 'kk', 'slip_gaji', 'surat_keterangan'];
+        const allDocsUploaded = requiredDocs.every(type => 
+            $(`tr[data-doc-type="${type}"]`).length > 0
+        );
         
-        requiredDocs.forEach(function(type) {
-            if ($('tr[data-doc-type="' + type + '"]').length === 0) {
-                allDocsUploaded = false;
-            }
-        });
+        const hasCriteriaValues = $('.criteria-input:checked').length > 0;
+        const canSubmit = allDocsUploaded && hasCriteriaValues;
         
-        let hasCriteriaValues = $('input[name^="criteria_values"]:checked').length > 0;
-        let canSubmit = allDocsUploaded && hasCriteriaValues;
-        
-        
-        let submitBtn = $('#submitApplicationBtn');
-        let submitHelp = $('#submitHelp');
+        const submitBtn = $('#submitApplicationBtn');
+        const submitHelp = $('#submitHelp');
         
         if (canSubmit) {
             submitBtn.prop('disabled', false);
@@ -866,12 +903,29 @@ $(document).ready(function() {
         } else {
             submitBtn.prop('disabled', true);
             submitBtn.removeClass('btn-success').addClass('btn-secondary');
-            if (submitHelp.length) submitHelp.show();
+            if (submitHelp.length) {
+                submitHelp.show();
+                
+                const missingItems = [];
+                if (!hasCriteriaValues) missingItems.push('pilih kriteria');
+                if (!allDocsUploaded) {
+                    const missingDocs = requiredDocs.filter(type => 
+                        $(`tr[data-doc-type="${type}"]`).length === 0
+                    );
+                    if (missingDocs.length > 0) {
+                        missingItems.push(`upload ${missingDocs.length} dokumen`);
+                    }
+                }
+                
+                if (missingItems.length > 0) {
+                    submitHelp.text('Lengkapi: ' + missingItems.join(', '));
+                }
+            }
         }
     }
     
     function showAlert(type, message) {
-        let alertHtml = `
+        const alertHtml = `
             <div class="alert alert-${type} alert-dismissible fade show" role="alert">
                 <i class="fas ${getAlertIcon(type)} me-2"></i>
                 ${message}
@@ -879,20 +933,15 @@ $(document).ready(function() {
             </div>
         `;
         
-        // Remove existing alerts
         $('.alert-dismissible').remove();
-        
-        // Add new alert at top of content
         $('.steps-progress').closest('.card').after(alertHtml);
         
-        // Auto dismiss after 5 seconds for success/info
         if (type === 'success' || type === 'info') {
-            setTimeout(function() {
+            setTimeout(() => {
                 $('.alert-dismissible').fadeOut();
             }, 5000);
         }
         
-        // Scroll to top to show alert
         $('html, body').animate({ scrollTop: 0 }, 300);
     }
     
@@ -906,72 +955,14 @@ $(document).ready(function() {
         return icons[type] || 'fa-info-circle';
     }
     
-    // PERBAIKAN: Handle submit aplikasi dengan AJAX
-    $(document).on('click', '#submitApplicationBtn', function(e) {
-        e.preventDefault();
-        
-        if ($(this).prop('disabled')) {
-            return;
-        }
-        
-        if (!confirm('Yakin ingin submit aplikasi? Setelah disubmit, Anda tidak dapat mengubah data lagi.')) {
-            return;
-        }
-        
-        const submitUrl = $(this).data('url');
-        const btn = $(this);
-        
-        btn.prop('disabled', true);
-        btn.html('<i class="fas fa-spinner fa-spin me-2"></i>Submitting...');
-        
-        $.ajax({
-            url: submitUrl,
-            type: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            success: function(response) {
-                if (response.success) {
-                    showAlert('success', 'Aplikasi berhasil disubmit! Redirecting...');
-                    
-                    // Redirect ke dashboard setelah 2 detik
-                    setTimeout(function() {
-                        window.location.href = '{{ route("student.dashboard") }}';
-                    }, 2000);
-                } else {
-                    showAlert('danger', response.message || 'Gagal submit aplikasi');
-                    btn.prop('disabled', false);
-                    btn.html('<i class="fas fa-paper-plane me-2"></i>Submit Aplikasi');
-                }
-            },
-            error: function(xhr) {
-                let message = 'Gagal submit aplikasi. Silakan coba lagi.';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    message = xhr.responseJSON.message;
-                }
-                showAlert('danger', message);
-                btn.prop('disabled', false);
-                btn.html('<i class="fas fa-paper-plane me-2"></i>Submit Aplikasi');
-            }
-        });
-    });
-    // Check submit button status on criteria change
-    $('input[name^="criteria_values"]').on('change', function() {
-        updateSubmitButton();
-    });
-    
     // Initialize submit button status
     updateSubmitButton();
     
-    // PERBAIKAN: Prevent form submit yang tidak diinginkan
-    $('#mainForm').on('submit', function(e) {
-        // Pastikan ini bukan submit dari upload button
-        if ($(document.activeElement).attr('id') === 'uploadBtn') {
-            e.preventDefault();
-            return false;
-        }
-    });
+    // Debug logging
+    console.log('Application edit form initialized');
+    console.log('Criteria inputs found:', $('.criteria-input').length);
+    console.log('Checked criteria inputs:', $('.criteria-input:checked').length);
+    console.log('Documents found:', $('tr[data-doc-type]').length);
 });
 </script>
 @endpush

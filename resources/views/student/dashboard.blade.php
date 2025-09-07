@@ -1,10 +1,27 @@
-{{-- resources/views/student/dashboard.blade.php - Updated --}}
+{{-- resources/views/student/dashboard.blade.php - PERBAIKAN untuk Multiple Periods --}}
 @extends('layouts.app')
 
 @section('title', 'Dashboard Siswa')
 @section('page-title', 'Dashboard Siswa')
 
 @section('content')
+
+{{-- Debug Information (bisa dihapus setelah testing) --}}
+@if(config('app.debug'))
+<div class="row mb-2">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <small>
+                <strong>Debug Info:</strong><br>
+                Active Period: {{ $activePeriod ? $activePeriod->name : 'None' }}<br>
+                Available Periods: {{ isset($availablePeriods) ? $availablePeriods->count() : 0 }}<br>
+                Current Application: {{ $currentApplication ? 'Yes (ID: '.$currentApplication->id.')' : 'None' }}
+            </small>
+        </div>
+    </div>
+</div>
+@endif
+
 <div class="row mb-4">
     <div class="col-12">
         @if($activePeriod)
@@ -19,35 +36,95 @@
                         @endif
                     </div>
                     @if(!$currentApplication)
-                        @php
-                            $now = now();
-                            $isOngoing = $now->between($activePeriod->start_date, $activePeriod->end_date);
-                        @endphp
-                        @if($isOngoing)
+                        @if($activePeriod->canAcceptApplications())
                             <a href="{{ route('student.application.create') }}" class="btn btn-primary">
                                 <i class="fas fa-plus me-2"></i>Daftar Sekarang
                             </a>
-                        @elseif($now->lt($activePeriod->start_date))
-                            <span class="badge bg-info fs-6">Belum Dimulai</span>
                         @else
-                            <span class="badge bg-danger fs-6">Sudah Berakhir</span>
+                            <span class="badge bg-warning fs-6">Periode Penuh / Berakhir</span>
                         @endif
                     @endif
                 </div>
             </div>
         @else
-            <div class="alert alert-warning">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
-                    <div>
-                        <h5 class="mb-1">Tidak Ada Periode Aktif</h5>
-                        <p class="mb-0">Saat ini tidak ada periode pendaftaran beasiswa yang aktif. Silakan tunggu pengumuman periode berikutnya.</p>
+            {{-- PERBAIKAN: Tampilkan periode yang akan datang jika ada --}}
+            @if(isset($upcomingPeriods) && $upcomingPeriods->count() > 0)
+                <div class="alert alert-info">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-calendar-plus fa-2x me-3"></i>
+                        <div>
+                            <h5 class="mb-1">Periode Akan Datang</h5>
+                            @foreach($upcomingPeriods as $period)
+                                <p class="mb-0">
+                                    <strong>{{ $period->name }}</strong> - 
+                                    Dimulai {{ $period->start_date->format('d/m/Y') }}
+                                    <span class="badge bg-info">{{ $period->remaining_days }}</span>
+                                </p>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
-            </div>
+            @else
+                <div class="alert alert-warning">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                        <div>
+                            <h5 class="mb-1">Tidak Ada Periode Aktif</h5>
+                            <p class="mb-0">Saat ini tidak ada periode pendaftaran beasiswa yang aktif. Silakan tunggu pengumuman periode berikutnya.</p>
+                        </div>
+                    </div>
+                </div>
+            @endif
         @endif
     </div>
 </div>
+
+{{-- PERBAIKAN: Tampilkan periode yang tersedia untuk pendaftaran --}}
+@if(isset($availablePeriods) && $availablePeriods->count() > 0 && !$activePeriod)
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    Periode Tersedia
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    @foreach($availablePeriods as $period)
+                    <div class="col-md-4 mb-3">
+                        <div class="card border-primary">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">{{ $period->name }}</h6>
+                                <p class="card-text small">
+                                    {{ $period->start_date->format('d/m/Y') }} - {{ $period->end_date->format('d/m/Y') }}<br>
+                                    <span class="badge bg-{{ $period->is_ongoing ? 'success' : 'info' }}">
+                                        {{ $period->remaining_days }}
+                                    </span>
+                                </p>
+                                @php
+                                    $hasApplication = $applications->where('period_id', $period->id)->first();
+                                @endphp
+                                @if($hasApplication)
+                                    <span class="badge bg-secondary">Sudah Mendaftar</span>
+                                @elseif($period->is_ongoing)
+                                    <a href="{{ route('student.application.create') }}" class="btn btn-sm btn-primary">
+                                        Daftar
+                                    </a>
+                                @else
+                                    <span class="badge bg-warning">Belum Dimulai</span>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 
 <div class="row">
     <div class="col-md-8">
@@ -75,13 +152,23 @@
                             </thead>
                             <tbody>
                                 @foreach($applications as $app)
-                                <tr>
+                                <tr class="{{ $app->id === optional($currentApplication)->id ? 'table-warning' : '' }}">
                                     <td>
                                         <code>{{ $app->application_number ?? 'APP-' . $app->id }}</code>
+                                        @if($app->id === optional($currentApplication)->id)
+                                            <span class="badge bg-warning">Aktif</span>
+                                        @endif
                                     </td>
                                     <td>
                                         <strong>{{ $app->period->name }}</strong>
                                         <br><small class="text-muted">{{ $app->period->start_date->format('d/m/Y') }} - {{ $app->period->end_date->format('d/m/Y') }}</small>
+                                        @if($app->period->is_ongoing)
+                                            <span class="badge bg-success">Sedang Berlangsung</span>
+                                        @elseif($app->period->is_expired)
+                                            <span class="badge bg-secondary">Berakhir</span>
+                                        @else
+                                            <span class="badge bg-info">Akan Datang</span>
+                                        @endif
                                     </td>
                                     <td>{{ $app->created_at->format('d/m/Y H:i') }}</td>
                                     <td>
@@ -132,16 +219,10 @@
                         <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
                         <h5 class="text-muted">Belum Ada Aplikasi</h5>
                         <p class="text-muted">Anda belum pernah mengajukan aplikasi beasiswa</p>
-                        @if($activePeriod)
-                            @php
-                                $now = now();
-                                $isOngoing = $now->between($activePeriod->start_date, $activePeriod->end_date);
-                            @endphp
-                            @if($isOngoing)
-                                <a href="{{ route('student.application.create') }}" class="btn btn-primary">
-                                    <i class="fas fa-plus me-2"></i>Buat Aplikasi Pertama
-                                </a>
-                            @endif
+                        @if($activePeriod && $activePeriod->canAcceptApplications())
+                            <a href="{{ route('student.application.create') }}" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Buat Aplikasi Pertama
+                            </a>
                         @endif
                     </div>
                 @endif
@@ -228,6 +309,7 @@
             </div>
         @endif
         
+        {{-- Informasi Panduan --}}
         <div class="card {{ $currentApplication ? 'mt-3' : '' }}">
             <div class="card-header">
                 <h6 class="mb-0">
@@ -247,33 +329,17 @@
                     <li>Tunggu hasil validasi dari admin</li>
                     <li>Lihat hasil perhitungan dan ranking</li>
                 </ol>
-            </div>
-        </div>
-        
-        <div class="card mt-3">
-            <div class="card-header">
-                <h6 class="mb-0">
-                    <i class="fas fa-clipboard-list me-2"></i>
-                    Dokumen Yang Diperlukan
-                </h6>
-            </div>
-            <div class="card-body">
-                <ul class="small">
-                    <li><i class="fas fa-id-card text-primary me-1"></i> Kartu Keluarga (KK)</li>
-                    <li><i class="fas fa-id-card text-primary me-1"></i> KTP Orang Tua</li>
-                    <li><i class="fas fa-file-invoice-dollar text-success me-1"></i> Slip Gaji / Surat Keterangan Penghasilan</li>
-                    <li><i class="fas fa-file-alt text-info me-1"></i> Surat Keterangan Tidak Mampu (SKTM)</li>
-                </ul>
                 
-                <div class="alert alert-light mt-2">
-                    <small class="text-muted">
+                <div class="alert alert-info mt-2">
+                    <small>
                         <i class="fas fa-info-circle me-1"></i>
-                        Pastikan semua dokumen dalam format PDF/JPG dan ukuran maksimal 2MB
+                        <strong>Catatan:</strong> Anda dapat mendaftar untuk setiap periode yang berbeda. Satu siswa dapat memiliki multiple aplikasi untuk periode yang berbeda.
                     </small>
                 </div>
             </div>
         </div>
         
+        {{-- Info periode aktif jika ada --}}
         @if($activePeriod)
         <div class="card mt-3">
             <div class="card-header">
@@ -298,25 +364,43 @@
                     </tr>
                     <tr>
                         <td>Sisa Waktu</td>
-                        <td>: 
-                            @php
-                                $now = now();
-                                if($now->lt($activePeriod->start_date)) {
-                                    $days = $now->diffInDays($activePeriod->start_date);
-                                    echo "<span class='badge bg-info'>{$days} hari lagi dimulai</span>";
-                                } elseif($now->between($activePeriod->start_date, $activePeriod->end_date)) {
-                                    $days = $now->diffInDays($activePeriod->end_date);
-                                    echo "<span class='badge bg-success'>{$days} hari lagi berakhir</span>";
-                                } else {
-                                    echo "<span class='badge bg-danger'>Sudah berakhir</span>";
-                                }
-                            @endphp
-                        </td>
+                        <td>: <span class="badge bg-success">{{ $activePeriod->remaining_days }}</span></td>
                     </tr>
+                    @if($activePeriod->max_applications)
+                    <tr>
+                        <td>Kuota</td>
+                        <td>: {{ $activePeriod->applications_count }}/{{ $activePeriod->max_applications }}</td>
+                    </tr>
+                    @endif
                 </table>
             </div>
         </div>
         @endif
+        
+        {{-- Dokumen yang diperlukan --}}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-clipboard-list me-2"></i>
+                    Dokumen Yang Diperlukan
+                </h6>
+            </div>
+            <div class="card-body">
+                <ul class="small">
+                    <li><i class="fas fa-id-card text-primary me-1"></i> Kartu Keluarga (KK)</li>
+                    <li><i class="fas fa-id-card text-primary me-1"></i> KTP Orang Tua</li>
+                    <li><i class="fas fa-file-invoice-dollar text-success me-1"></i> Slip Gaji / Surat Keterangan Penghasilan</li>
+                    <li><i class="fas fa-file-alt text-info me-1"></i> Surat Keterangan Tidak Mampu (SKTM)</li>
+                </ul>
+                
+                <div class="alert alert-light mt-2">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Pastikan semua dokumen dalam format PDF/JPG dan ukuran maksimal 2MB
+                    </small>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 @endsection
