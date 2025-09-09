@@ -112,6 +112,7 @@ Route::middleware(['auth', 'student'])->prefix('student')->name('student.')->gro
     Route::get('/application/{application}/edit', [ApplicationController::class, 'edit'])->name('application.edit');
     Route::put('/application/{application}', [ApplicationController::class, 'update'])->name('application.update');
     Route::post('/application/{application}/submit', [ApplicationController::class, 'submit'])->name('application.submit');
+    Route::post('/student/application/{application}/save-criteria', [ApplicationController::class, 'saveCriteria'])->name('student.application.save-criteria');
     
     // PERBAIKAN: Document upload routes yang lebih jelas
     Route::post('/application/{application}/upload', [ApplicationController::class, 'uploadDocument'])
