@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Log;
 
 class ApplicationValue extends Model
 {
@@ -12,293 +11,153 @@ class ApplicationValue extends Model
 
     protected $fillable = [
         'application_id',
-        'criteria_type', // 'criteria', 'subcriteria', 'subsubcriteria'
+        'criteria_type',
         'criteria_id',
         'value',
-        'score'
+        'score',
     ];
 
+    // FIXED: Cast score ke float untuk menghindari masalah BigDecimal
     protected $casts = [
-        'score' => 'decimal:4,2'
+        'application_id' => 'integer',
+        'criteria_id' => 'integer',
+        'score' => 'float', // Ubah dari decimal ke float
     ];
 
+    // FIXED: Accessor untuk memastikan score selalu return float
+    public function getScoreAttribute($value)
+    {
+        if ($value === null) {
+            return 0.0;
+        }
+        
+        // Handle BigDecimal objects
+        if (is_object($value) && method_exists($value, 'toFloat')) {
+            return $value->toFloat();
+        }
+        
+        // Convert to float
+        return (float) $value;
+    }
+
+    // FIXED: Mutator untuk memastikan score disimpan sebagai float
+    public function setScoreAttribute($value)
+    {
+        if ($value === null) {
+            $this->attributes['score'] = 0.0;
+            return;
+        }
+        
+        // Handle BigDecimal objects
+        if (is_object($value) && method_exists($value, 'toFloat')) {
+            $this->attributes['score'] = $value->toFloat();
+            return;
+        }
+        
+        // Convert to float
+        $this->attributes['score'] = (float) $value;
+    }
+
+    // Relationships
     public function application()
     {
         return $this->belongsTo(Application::class);
     }
 
-    /**
-     * Relasi polymorphic ke kriteria yang sesuai
-     * PERBAIKAN: Tambahkan error handling dan logging
-     */
     public function criteria()
     {
-        try {
-            switch ($this->criteria_type) {
-                case 'criteria':
-                    return $this->belongsTo(Criteria::class, 'criteria_id');
-                case 'subcriteria':
-                    return $this->belongsTo(SubCriteria::class, 'criteria_id');
-                case 'subsubcriteria':
-                    return $this->belongsTo(SubSubCriteria::class, 'criteria_id');
-                default:
-                    Log::warning('Unknown criteria type in ApplicationValue', [
-                        'id' => $this->id,
-                        'criteria_type' => $this->criteria_type
-                    ]);
-                    return null;
-            }
-        } catch (\Exception $e) {
-            Log::error('Error in ApplicationValue criteria relation', [
-                'id' => $this->id,
-                'criteria_type' => $this->criteria_type,
-                'criteria_id' => $this->criteria_id,
-                'error' => $e->getMessage()
-            ]);
-            return null;
-        }
+        return $this->belongsTo(Criteria::class, 'criteria_id')
+            ->where('criteria_type', 'criteria');
     }
 
-    /**
-     * Get the related criteria instance (improved)
-     * PERBAIKAN: Method untuk mendapatkan instance kriteria yang benar
-     */
-    public function getCriteriaInstance()
+    public function subCriteria()
     {
-        try {
-            switch ($this->criteria_type) {
-                case 'criteria':
-                    return Criteria::find($this->criteria_id);
-                case 'subcriteria':
-                    return SubCriteria::find($this->criteria_id);
-                case 'subsubcriteria':
-                    return SubSubCriteria::find($this->criteria_id);
-                default:
-                    return null;
-            }
-        } catch (\Exception $e) {
-            Log::error('Error getting criteria instance', [
-                'application_value_id' => $this->id,
-                'error' => $e->getMessage()
-            ]);
-            return null;
-        }
+        return $this->belongsTo(SubCriteria::class, 'criteria_id')
+            ->where('criteria_type', 'subcriteria');
     }
 
-    /**
-     * Get the actual selected option for this criteria value
-     * PERBAIKAN: Method untuk mendapatkan opsi yang dipilih
-     */
-    public function getSelectedOption()
+    public function subSubCriteria()
     {
-        try {
-            // Jika value adalah ID dari sub-sub-criteria
-            if ($this->criteria_type === 'subcriteria' && is_numeric($this->value)) {
-                $subSubCriteria = SubSubCriteria::find($this->value);
-                if ($subSubCriteria) {
-                    return $subSubCriteria;
-                }
-            }
-            
-            // Jika value adalah ID dari sub-criteria
-            if ($this->criteria_type === 'criteria' && is_numeric($this->value)) {
-                $subCriteria = SubCriteria::find($this->value);
-                if ($subCriteria) {
-                    return $subCriteria;
-                }
-            }
-            
-            // Default: return the criteria instance itself
-            return $this->getCriteriaInstance();
-        } catch (\Exception $e) {
-            Log::error('Error getting selected option', [
-                'application_value_id' => $this->id,
-                'error' => $e->getMessage()
-            ]);
-            return null;
-        }
+        return $this->belongsTo(SubSubCriteria::class, 'criteria_id')
+            ->where('criteria_type', 'subsubcriteria');
     }
 
-    /**
-     * Scope untuk filter berdasarkan tipe kriteria
-     */
-    public function scopeForCriteriaType($query, $type)
-    {
-        return $query->where('criteria_type', $type);
-    }
-
-    /**
-     * Scope untuk filter berdasarkan aplikasi
-     */
+    // Scopes
     public function scopeForApplication($query, $applicationId)
     {
         return $query->where('application_id', $applicationId);
     }
 
-    /**
-     * Get nilai yang sudah diformat
-     */
-    public function getFormattedValueAttribute()
+    public function scopeByType($query, $criteriaType)
     {
-        return ucfirst(str_replace('_', ' ', $this->value));
+        return $query->where('criteria_type', $criteriaType);
     }
 
-    /**
-     * Get display name for this application value
-     * PERBAIKAN: Method untuk mendapatkan nama yang bisa ditampilkan
-     */
-    public function getDisplayNameAttribute()
+    public function scopeByCriteriaId($query, $criteriaId)
     {
-        try {
-            $criteria = $this->getCriteriaInstance();
-            if (!$criteria) {
-                return 'Unknown Criteria';
-            }
+        return $query->where('criteria_id', $criteriaId);
+    }
 
-            $selectedOption = $this->getSelectedOption();
-            if ($selectedOption && $selectedOption->id !== $criteria->id) {
-                return $criteria->name . ' - ' . $selectedOption->name;
-            }
-
-            return $criteria->name;
-        } catch (\Exception $e) {
-            Log::error('Error getting display name', [
-                'application_value_id' => $this->id,
-                'error' => $e->getMessage()
-            ]);
-            return 'Error: Cannot determine name';
+    // Helper methods
+    public function getCriteriaName()
+    {
+        switch ($this->criteria_type) {
+            case 'criteria':
+                return $this->criteria ? $this->criteria->name : 'Unknown Criteria';
+            case 'subcriteria':
+                return $this->subCriteria ? $this->subCriteria->name : 'Unknown SubCriteria';
+            case 'subsubcriteria':
+                return $this->subSubCriteria ? $this->subSubCriteria->name : 'Unknown SubSubCriteria';
+            default:
+                return 'Unknown';
         }
     }
 
-    /**
-     * Validate the score based on criteria type and value
-     * PERBAIKAN: Method untuk validasi score
-     */
-    public function validateScore()
+    public function getCriteriaCode()
     {
-        try {
-            $expectedScore = $this->calculateExpectedScore();
-            
-            if ($expectedScore !== null && abs($this->score - $expectedScore) > 0.01) {
-                Log::warning('Score mismatch detected', [
-                    'application_value_id' => $this->id,
-                    'current_score' => $this->score,
-                    'expected_score' => $expectedScore
-                ]);
-                return false;
-            }
-            
-            return true;
-        } catch (\Exception $e) {
-            Log::error('Error validating score', [
-                'application_value_id' => $this->id,
-                'error' => $e->getMessage()
-            ]);
-            return false;
+        switch ($this->criteria_type) {
+            case 'criteria':
+                return $this->criteria ? $this->criteria->code : 'UNK';
+            case 'subcriteria':
+                return $this->subCriteria ? $this->subCriteria->code : 'UNK';
+            case 'subsubcriteria':
+                return $this->subSubCriteria ? $this->subSubCriteria->code : 'UNK';
+            default:
+                return 'UNK';
         }
     }
 
-    /**
-     * Calculate what the score should be based on criteria and value
-     * PERBAIKAN: Method untuk menghitung score yang seharusnya
-     */
-    public function calculateExpectedScore()
+    // FIXED: Method untuk mendapatkan score sebagai float dengan safety check
+    public function getFloatScore()
     {
-        try {
-            if ($this->criteria_type === 'subcriteria' && is_numeric($this->value)) {
-                // Value is SubSubCriteria ID
-                $subSubCriteria = SubSubCriteria::find($this->value);
-                return $subSubCriteria ? $subSubCriteria->score : null;
-            }
-            
-            if ($this->criteria_type === 'subsubcriteria') {
-                $subSubCriteria = SubSubCriteria::find($this->criteria_id);
-                return $subSubCriteria ? $subSubCriteria->score : null;
-            }
-            
-            if ($this->criteria_type === 'criteria' && is_numeric($this->value)) {
-                $criteria = Criteria::find($this->criteria_id);
-                return $criteria ? ($criteria->score ?? 1) * intval($this->value) : null;
-            }
-            
-            // Default calculation
-            $criteria = $this->getCriteriaInstance();
-            if ($criteria && isset($criteria->score)) {
-                return $criteria->score;
-            }
-            
-            return 1; // Default score
-        } catch (\Exception $e) {
-            Log::error('Error calculating expected score', [
-                'application_value_id' => $this->id,
-                'error' => $e->getMessage()
-            ]);
-            return null;
-        }
-    }
-
-    /**
-     * Boot method to add model events
-     * PERBAIKAN: Tambahkan event handling
-     */
-    protected static function boot()
-    {
-        parent::boot();
+        $score = $this->score;
         
-        // Log when creating new application values
-        static::creating(function ($applicationValue) {
-            Log::info('Creating new application value', [
-                'application_id' => $applicationValue->application_id,
-                'criteria_type' => $applicationValue->criteria_type,
-                'criteria_id' => $applicationValue->criteria_id,
-                'value' => $applicationValue->value,
-                'score' => $applicationValue->score
-            ]);
-        });
-        
-        // Validate score when updating
-        static::updating(function ($applicationValue) {
-            Log::info('Updating application value', [
-                'id' => $applicationValue->id,
-                'changes' => $applicationValue->getDirty()
-            ]);
-        });
-        
-        // Log when deleting
-        static::deleting(function ($applicationValue) {
-            Log::info('Deleting application value', [
-                'id' => $applicationValue->id,
-                'application_id' => $applicationValue->application_id,
-                'criteria_type' => $applicationValue->criteria_type
-            ]);
-        });
-    }
-
-    /**
-     * Convert the model to array with additional debug info
-     * PERBAIKAN: Tambahkan debug info saat debugging
-     */
-    public function toDebugArray()
-    {
-        $array = $this->toArray();
-        
-        try {
-            $criteria = $this->getCriteriaInstance();
-            $selectedOption = $this->getSelectedOption();
-            
-            $array['debug_info'] = [
-                'criteria_name' => $criteria ? $criteria->name : 'Not Found',
-                'selected_option_name' => $selectedOption ? $selectedOption->name : 'Not Found',
-                'expected_score' => $this->calculateExpectedScore(),
-                'score_valid' => $this->validateScore(),
-                'display_name' => $this->display_name
-            ];
-        } catch (\Exception $e) {
-            $array['debug_info'] = [
-                'error' => $e->getMessage()
-            ];
+        if ($score === null) {
+            return 0.0;
         }
         
-        return $array;
+        if (is_object($score) && method_exists($score, 'toFloat')) {
+            return $score->toFloat();
+        }
+        
+        if (is_numeric($score)) {
+            return (float) $score;
+        }
+        
+        return 0.0;
+    }
+
+    // Method untuk debugging score
+    public function debugScore()
+    {
+        return [
+            'raw_score' => $this->attributes['score'] ?? null,
+            'raw_score_type' => gettype($this->attributes['score'] ?? null),
+            'processed_score' => $this->score,
+            'processed_score_type' => gettype($this->score),
+            'float_score' => $this->getFloatScore(),
+            'is_object' => is_object($this->attributes['score'] ?? null),
+            'has_toFloat' => is_object($this->attributes['score'] ?? null) && method_exists($this->attributes['score'], 'toFloat'),
+        ];
     }
 }

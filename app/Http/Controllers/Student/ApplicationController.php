@@ -172,6 +172,121 @@ class ApplicationController extends Controller
         return view('student.application.edit', compact('application', 'criterias', 'existingValues', 'documents'));
     }
 
+    // FIXED: Save criteria dengan penanganan BigDecimal yang benar
+    public function saveCriteria(Request $request, Application $application)
+    {
+        Log::info('SaveCriteria called', [
+            'application_id' => $application->id,
+            'user_id' => Auth::id(),
+            'request_data' => $request->all()
+        ]);
+
+        if ($application->user_id !== Auth::id()) {
+            return response()->json(['success' => false, 'message' => 'Akses tidak diizinkan'], 403);
+        }
+
+        if ($application->status !== 'draft') {
+            return response()->json(['success' => false, 'message' => 'Aplikasi yang sudah disubmit tidak dapat diubah'], 422);
+        }
+
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'criteria_type' => 'required|string|in:subcriteria,subsubcriteria',
+            'criteria_id' => 'required|integer|min:1',
+            'value' => 'required|string'
+        ]);
+
+        if ($validator->fails()) {
+            Log::error('SaveCriteria validation failed', [
+                'errors' => $validator->errors()->toArray(),
+                'request_data' => $request->all()
+            ]);
+            
+            return response()->json([
+                'success' => false, 
+                'message' => 'Data tidak valid: ' . $validator->errors()->first()
+            ], 422);
+        }
+
+        try {
+            DB::transaction(function () use ($request, $application) {
+                $criteriaType = $request->input('criteria_type');
+                $criteriaId = (int) $request->input('criteria_id');
+                $value = $request->input('value');
+
+                Log::info('Processing criteria save with validated data', [
+                    'criteria_type' => $criteriaType,
+                    'criteria_id' => $criteriaId,
+                    'value' => $value,
+                    'value_type' => gettype($value)
+                ]);
+
+                // Hapus nilai kriteria yang lama untuk criteria_id yang sama
+                $deletedCount = ApplicationValue::where('application_id', $application->id)
+                    ->where('criteria_type', $criteriaType)
+                    ->where('criteria_id', $criteriaId)
+                    ->delete();
+
+                Log::info('Deleted existing values', ['count' => $deletedCount]);
+
+                // FIXED: Calculate score dengan penanganan BigDecimal yang benar
+                $score = $this->calculateScore($criteriaType, $criteriaId, $value);
+                
+                Log::info('Score calculation result', [
+                    'raw_score' => $score,
+                    'score_type' => gettype($score)
+                ]);
+                
+                // FIXED: Gunakan query builder raw untuk menghindari masalah BigDecimal
+                $newValueId = DB::table('application_values')->insertGetId([
+                    'application_id' => $application->id,
+                    'criteria_type' => $criteriaType,
+                    'criteria_id' => $criteriaId,
+                    'value' => $value,
+                    'score' => (float) $score, // Cast ke float untuk menghindari BigDecimal
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                Log::info('Created new application value successfully', [
+                    'id' => $newValueId,
+                    'application_id' => $application->id,
+                    'criteria_type' => $criteriaType,
+                    'criteria_id' => $criteriaId,
+                    'value' => $value,
+                    'score' => (float) $score
+                ]);
+            });
+
+            // Hitung total kriteria yang sudah disimpan
+            $totalSaved = ApplicationValue::where('application_id', $application->id)->count();
+
+            Log::info('Auto-save criteria berhasil', [
+                'application_id' => $application->id,
+                'total_saved' => $totalSaved
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Kriteria berhasil disimpan otomatis',
+                'total_criteria_saved' => $totalSaved
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Auto-save criteria gagal', [
+                'application_id' => $application->id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menyimpan kriteria: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function update(Request $request, Application $application)
     {
         if ($application->user_id !== Auth::id()) {
@@ -197,7 +312,6 @@ class ApplicationController extends Controller
 
         try {
             DB::transaction(function () use ($request, $application) {
-                // Update basic information
                 $application->update([
                     'full_name' => $request->full_name,
                     'nisn' => $request->nisn,
@@ -211,140 +325,10 @@ class ApplicationController extends Controller
                     'updated_at' => now(),
                 ]);
 
-                // ENHANCED: Process criteria values with comprehensive debugging
-                Log::info('DETAILED: Starting criteria processing', [
+                Log::info('Personal data updated successfully', [
                     'application_id' => $application->id,
-                    'full_request' => $request->all(),
-                    'has_criteria_values' => $request->has('criteria_values'),
-                    'criteria_values_content' => $request->input('criteria_values')
+                    'user_id' => Auth::id()
                 ]);
-
-                // Clear existing values first
-                ApplicationValue::where('application_id', $application->id)->delete();
-                Log::info('Cleared existing application values for application ' . $application->id);
-
-                $createdCount = 0;
-                $processedEntries = [];
-                
-                // IMPROVED: Multiple processing strategies
-                
-                // Strategy 1: Process nested criteria_values structure
-                if ($request->has('criteria_values')) {
-                    $criteriaValues = $request->input('criteria_values');
-                    Log::info('Processing nested criteria_values structure', ['data' => $criteriaValues]);
-                    
-                    if (is_array($criteriaValues)) {
-                        foreach ($criteriaValues as $criteriaType => $typeValues) {
-                            if (is_array($typeValues)) {
-                                foreach ($typeValues as $criteriaId => $selectedValue) {
-                                    if (!empty($selectedValue)) {
-                                        $result = $this->createApplicationValue($application->id, $criteriaType, $criteriaId, $selectedValue);
-                                        if ($result['success']) {
-                                            $createdCount++;
-                                            $processedEntries[] = [
-                                                'type' => $criteriaType,
-                                                'id' => $criteriaId,
-                                                'value' => $selectedValue,
-                                                'source' => 'nested_structure'
-                                            ];
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Strategy 2: Process individual form inputs (radio buttons)
-                foreach ($request->all() as $inputName => $inputValue) {
-                    if (empty($inputValue)) continue;
-
-                    // Match patterns: criteria_values[type][id]
-                    if (preg_match('/criteria_values\[(\w+)\]\[(\d+)\]/', $inputName, $matches)) {
-                        $criteriaType = $matches[1];
-                        $criteriaId = (int)$matches[2];
-                        
-                        // Avoid duplicates from strategy 1
-                        $duplicate = false;
-                        foreach ($processedEntries as $entry) {
-                            if ($entry['type'] === $criteriaType && $entry['id'] === $criteriaId) {
-                                $duplicate = true;
-                                break;
-                            }
-                        }
-                        
-                        if (!$duplicate) {
-                            $result = $this->createApplicationValue($application->id, $criteriaType, $criteriaId, $inputValue);
-                            if ($result['success']) {
-                                $createdCount++;
-                                $processedEntries[] = [
-                                    'type' => $criteriaType,
-                                    'id' => $criteriaId,
-                                    'value' => $inputValue,
-                                    'source' => 'individual_input'
-                                ];
-                            }
-                        }
-                    }
-                }
-
-                // Strategy 3: Process direct radio button names (fallback)
-                foreach ($request->all() as $inputName => $inputValue) {
-                    if (empty($inputValue) || strpos($inputName, '_token') !== false) continue;
-                    
-                    // Match patterns like: subcriteria_5, subsubcriteria_10
-                    if (preg_match('/^(subcriteria|subsubcriteria)_(\d+)$/', $inputName, $matches)) {
-                        $criteriaType = $matches[1];
-                        $criteriaId = (int)$matches[2];
-                        
-                        // Avoid duplicates
-                        $duplicate = false;
-                        foreach ($processedEntries as $entry) {
-                            if ($entry['type'] === $criteriaType && $entry['id'] === $criteriaId) {
-                                $duplicate = true;
-                                break;
-                            }
-                        }
-                        
-                        if (!$duplicate) {
-                            $result = $this->createApplicationValue($application->id, $criteriaType, $criteriaId, $inputValue);
-                            if ($result['success']) {
-                                $createdCount++;
-                                $processedEntries[] = [
-                                    'type' => $criteriaType,
-                                    'id' => $criteriaId,
-                                    'value' => $inputValue,
-                                    'source' => 'direct_radio'
-                                ];
-                            }
-                        }
-                    }
-                }
-
-                // Final verification
-                $finalDbCount = ApplicationValue::where('application_id', $application->id)->count();
-                
-                Log::info('CRITERIA PROCESSING COMPLETE', [
-                    'application_id' => $application->id,
-                    'created_count' => $createdCount,
-                    'final_db_count' => $finalDbCount,
-                    'processed_entries' => $processedEntries,
-                    'success' => $finalDbCount > 0
-                ]);
-
-                // Additional debugging for zero results
-                if ($finalDbCount === 0) {
-                    Log::warning('NO CRITERIA VALUES SAVED - DEBUGGING', [
-                        'application_id' => $application->id,
-                        'request_method' => $request->method(),
-                        'content_type' => $request->header('Content-Type'),
-                        'all_input_keys' => array_keys($request->all()),
-                        'request_size' => strlen(serialize($request->all())),
-                        'criteria_related_inputs' => array_filter($request->all(), function($key) {
-                            return strpos($key, 'criteria') !== false || strpos($key, 'subcriteria') !== false;
-                        }, ARRAY_FILTER_USE_KEY)
-                    ]);
-                }
             });
 
         } catch (\Exception $e) {
@@ -364,59 +348,312 @@ class ApplicationController extends Controller
                 ->with('error', 'Terjadi kesalahan saat menyimpan data: ' . $e->getMessage());
         }
 
-        // Success response with verification
         $savedValuesCount = ApplicationValue::where('application_id', $application->id)->count();
         
         if ($request->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Data aplikasi berhasil diperbarui',
+                'message' => 'Data pribadi berhasil diperbarui',
                 'saved_criteria_count' => $savedValuesCount
             ]);
         }
 
         return redirect()->route('student.application.edit', $application->id)
-            ->with('success', "Data aplikasi berhasil diperbarui. Kriteria tersimpan: {$savedValuesCount}");
+            ->with('success', "Data pribadi berhasil diperbarui. Kriteria tersimpan: {$savedValuesCount}");
     }
 
-    private function createApplicationValue($applicationId, $criteriaType, $criteriaId, $value)
+    public function submit(Request $request, Application $application)
     {
+        Log::info('Submit application called', [
+            'application_id' => $application->id,
+            'user_id' => Auth::id(),
+            'application_status' => $application->status
+        ]);
+
+        if ($application->user_id !== Auth::id()) {
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+            }
+            abort(403, 'Unauthorized access to application.');
+        }
+
+        if ($application->status !== 'draft') {
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Aplikasi tidak dapat disubmit'], 422);
+            }
+            return redirect()->route('student.application.edit', $application->id)
+                ->with('error', 'Aplikasi tidak dapat disubmit');
+        }
+
         try {
-            $score = $this->calculateScore($criteriaType, $criteriaId, $value);
-            
-            $applicationValue = ApplicationValue::create([
-                'application_id' => $applicationId,
-                'criteria_type' => $criteriaType,
-                'criteria_id' => $criteriaId,
-                'value' => $value,
-                'score' => $score,
-                'created_at' => now(),
-                'updated_at' => now(),
+            $validationErrors = [];
+
+            // 1. Check personal data
+            $personalDataFields = [
+                'full_name' => 'Nama Lengkap',
+                'nisn' => 'NISN', 
+                'school' => 'Sekolah',
+                'class' => 'Kelas',
+                'birth_date' => 'Tanggal Lahir',
+                'birth_place' => 'Tempat Lahir',
+                'gender' => 'Jenis Kelamin',
+                'address' => 'Alamat',
+                'phone' => 'No. Telepon'
+            ];
+
+            foreach ($personalDataFields as $field => $label) {
+                if (!$application->$field || trim($application->$field) === '') {
+                    $validationErrors[] = "Data pribadi belum lengkap: $label";
+                }
+            }
+
+            Log::info('Personal data validation', [
+                'errors' => $validationErrors
             ]);
 
-            Log::info('CREATED application value', [
-                'id' => $applicationValue->id,
-                'application_id' => $applicationId,
-                'criteria_type' => $criteriaType,
-                'criteria_id' => $criteriaId,
-                'value' => $value,
-                'score' => $score
+            // 2. FIXED: Check criteria values dengan penghitungan yang benar
+            $applicationValues = ApplicationValue::where('application_id', $application->id)->get();
+            
+            // Hitung berdasarkan kriteria utama yang memiliki subcriteria
+            $mainCriteriaWithSubcriteria = Criteria::active()
+                ->with(['subCriterias' => function($query) {
+                    $query->active();
+                }])
+                ->get()
+                ->filter(function($criteria) {
+                    return $criteria->subCriterias->count() > 0;
+                });
+            
+            $expectedCriteriaCount = $mainCriteriaWithSubcriteria->count();
+            
+            Log::info('Criteria validation', [
+                'application_id' => $application->id,
+                'total_values' => $applicationValues->count(),
+                'expected_criteria' => $expectedCriteriaCount,
+                'main_criteria_with_subcriteria' => $mainCriteriaWithSubcriteria->count(),
+                'values_detail' => $applicationValues->map(function($v) {
+                    return [
+                        'id' => $v->id,
+                        'type' => $v->criteria_type,
+                        'criteria_id' => $v->criteria_id,
+                        'value' => $v->value,
+                        'score' => is_object($v->score) ? (string) $v->score : $v->score
+                    ];
+                })->toArray()
             ]);
 
-            return ['success' => true, 'value' => $applicationValue];
-            
+            if ($applicationValues->count() === 0) {
+                $validationErrors[] = 'Data kriteria AHP belum diisi sama sekali';
+            } elseif ($applicationValues->count() < $expectedCriteriaCount) {
+                $validationErrors[] = "Kriteria belum lengkap ({$applicationValues->count()} dari {$expectedCriteriaCount} kriteria terisi)";
+            }
+
+            // 3. Check documents
+            $requiredDocuments = ['ktp', 'kk', 'slip_gaji', 'surat_keterangan'];
+            $existingDocs = ApplicationDocument::where('application_id', $application->id)
+                ->pluck('document_type')
+                ->toArray();
+
+            Log::info('Document validation', [
+                'required_docs' => $requiredDocuments,
+                'existing_docs' => $existingDocs
+            ]);
+
+            $missingDocs = array_diff($requiredDocuments, $existingDocs);
+            if (!empty($missingDocs)) {
+                $docNames = [
+                    'ktp' => 'KTP Orang Tua',
+                    'kk' => 'Kartu Keluarga', 
+                    'slip_gaji' => 'Slip Gaji/Surat Keterangan Penghasilan',
+                    'surat_keterangan' => 'Surat Keterangan Tidak Mampu'
+                ];
+                
+                $missingDocNames = array_map(function($doc) use ($docNames) {
+                    return $docNames[$doc];
+                }, $missingDocs);
+                
+                $validationErrors[] = 'Dokumen belum lengkap: ' . implode(', ', $missingDocNames);
+            }
+
+            if (!empty($validationErrors)) {
+                Log::warning('Application submission failed validation', [
+                    'application_id' => $application->id,
+                    'user_id' => Auth::id(),
+                    'errors' => $validationErrors
+                ]);
+
+                if ($request->ajax()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Aplikasi belum dapat disubmit',
+                        'errors' => $validationErrors,
+                        'detailed_message' => implode('; ', $validationErrors)
+                    ], 422);
+                }
+                return redirect()->route('student.application.edit', $application->id)
+                    ->with('error', 'Aplikasi belum dapat disubmit: ' . implode('; ', $validationErrors));
+            }
+
+            // All validation passed - submit application
+            DB::transaction(function() use ($application, $applicationValues) {
+                $application->update([
+                    'status' => 'submitted',
+                    'submitted_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                // FIXED: Calculate total score dengan handling BigDecimal yang benar
+                $totalScore = 0;
+                foreach ($applicationValues as $value) {
+                    $score = is_object($value->score) ? (float) $value->score : (float) $value->score;
+                    $totalScore += $score;
+                }
+
+                Log::info('APPLICATION SUBMITTED SUCCESSFULLY', [
+                    'application_id' => $application->id,
+                    'user_id' => $application->user_id,
+                    'submitted_at' => $application->submitted_at,
+                    'criteria_values_count' => $applicationValues->count(),
+                    'total_score' => $totalScore
+                ]);
+            });
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Aplikasi berhasil disubmit untuk validasi',
+                    'redirect_url' => route('student.dashboard')
+                ]);
+            }
+
+            return redirect()->route('student.dashboard')
+                ->with('success', 'Aplikasi berhasil disubmit untuk validasi.');
+                
         } catch (\Exception $e) {
-            Log::error('FAILED to create application value', [
-                'application_id' => $applicationId,
-                'criteria_type' => $criteriaType,
-                'criteria_id' => $criteriaId,
-                'value' => $value,
-                'error' => $e->getMessage()
+            Log::error('Application submission failed', [
+                'application_id' => $application->id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             
-            return ['success' => false, 'error' => $e->getMessage()];
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal submit aplikasi: ' . $e->getMessage()
+                ], 500);
+            }
+            
+            return redirect()->route('student.application.edit', $application->id)
+                ->with('error', 'Gagal submit aplikasi: ' . $e->getMessage());
         }
     }
+
+    // FIXED: Calculate score method dengan penanganan BigDecimal yang tepat
+// FIXED: Calculate score method dengan logic yang benar
+private function calculateScore($criteriaType, $criteriaId, $value)
+{
+    try {
+        Log::info('Calculating score', [
+            'criteria_type' => $criteriaType,
+            'criteria_id' => $criteriaId,
+            'value' => $value
+        ]);
+
+        $score = 0.0;
+
+        // FIXED: Gunakan $criteriaId untuk mencari score, bukan $value
+        if ($criteriaType === 'subcriteria') {
+            $subCriteria = SubCriteria::find($criteriaId); // FIXED: Gunakan $criteriaId
+            if ($subCriteria && $subCriteria->score !== null) {
+                // Handle BigDecimal dengan konversi eksplisit ke float
+                $rawScore = $subCriteria->score;
+                if (is_object($rawScore) && method_exists($rawScore, 'toFloat')) {
+                    $score = $rawScore->toFloat();
+                } elseif (is_numeric($rawScore)) {
+                    $score = (float) $rawScore;
+                } else {
+                    $score = 0.0;
+                }
+            }
+            
+            Log::info('SubCriteria score calculated', [
+                'subcriteria_id' => $criteriaId, // FIXED: Log yang benar
+                'subcriteria_found' => $subCriteria ? true : false,
+                'raw_score_from_db' => $subCriteria ? $subCriteria->score : null,
+                'calculated_score' => $score,
+                'score_type' => gettype($score)
+            ]);
+            
+        } elseif ($criteriaType === 'subsubcriteria') {
+            $subSubCriteria = SubSubCriteria::find($criteriaId); // FIXED: Gunakan $criteriaId
+            if ($subSubCriteria && $subSubCriteria->score !== null) {
+                // Handle BigDecimal dengan konversi eksplisit ke float
+                $rawScore = $subSubCriteria->score;
+                if (is_object($rawScore) && method_exists($rawScore, 'toFloat')) {
+                    $score = $rawScore->toFloat();
+                } elseif (is_numeric($rawScore)) {
+                    $score = (float) $rawScore;
+                } else {
+                    $score = 0.0;
+                }
+            }
+            
+            Log::info('SubSubCriteria score calculated', [
+                'subsubcriteria_id' => $criteriaId, // FIXED: Log yang benar
+                'subsubcriteria_found' => $subSubCriteria ? true : false,
+                'raw_score_from_db' => $subSubCriteria ? $subSubCriteria->score : null,
+                'calculated_score' => $score,
+                'score_type' => gettype($score)
+            ]);
+        }
+        
+        // FIXED: Jika tidak ada score dari database criteria, gunakan value sebagai fallback
+        if ($score <= 0 && is_numeric($value)) {
+            $score = (float) $value;
+            Log::info('Using numeric value as fallback score', [
+                'value' => $value,
+                'fallback_score' => $score
+            ]);
+        }
+        
+        // FIXED: Jika masih 0 dan ada value, berikan score minimal
+        if ($score <= 0 && !empty($value)) {
+            $score = 1.0; // Score minimal untuk jawaban yang diisi
+            Log::info('Using minimal score for non-empty value', [
+                'value' => $value,
+                'minimal_score' => $score
+            ]);
+        }
+        
+        // Ensure score is a valid positive float
+        $finalScore = max(0.0, (float) $score);
+        
+        Log::info('Final score calculation', [
+            'criteria_type' => $criteriaType,
+            'criteria_id' => $criteriaId,
+            'value' => $value,
+            'raw_score' => $score,
+            'final_score' => $finalScore,
+            'final_score_type' => gettype($finalScore)
+        ]);
+        
+        return $finalScore;
+        
+    } catch (\Exception $e) {
+        Log::error('Error calculating score: ' . $e->getMessage(), [
+            'criteria_type' => $criteriaType,
+            'criteria_id' => $criteriaId,
+            'value' => $value,
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        
+        // Return minimal score for any filled value even if calculation fails
+        return !empty($value) ? 1.0 : 0.0;
+    }
+}
 
     public function uploadDocument(Request $request, Application $application)
     {
@@ -540,286 +777,15 @@ class ApplicationController extends Controller
         }
     }
 
-    public function submit(Request $request, Application $application)
-    {
-        if ($application->user_id !== Auth::id()) {
-            if ($request->ajax()) {
-                return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
-            }
-            abort(403, 'Unauthorized access to application.');
-        }
-
-        if ($application->status !== 'draft') {
-            if ($request->ajax()) {
-                return response()->json(['success' => false, 'message' => 'Aplikasi tidak dapat disubmit'], 422);
-            }
-            return redirect()->route('student.application.edit', $application->id)
-                ->with('error', 'Aplikasi tidak dapat disubmit');
-        }
-
-        try {
-            $validationErrors = [];
-
-            // Check personal data
-            $personalDataFields = [
-                'full_name' => 'Nama Lengkap',
-                'nisn' => 'NISN', 
-                'school' => 'Sekolah',
-                'class' => 'Kelas',
-                'birth_date' => 'Tanggal Lahir',
-                'birth_place' => 'Tempat Lahir',
-                'gender' => 'Jenis Kelamin',
-                'address' => 'Alamat',
-                'phone' => 'No. Telepon'
-            ];
-
-            $missingPersonalData = [];
-            foreach ($personalDataFields as $field => $label) {
-                if (!$application->$field || trim($application->$field) === '') {
-                    $missingPersonalData[] = $label;
-                }
-            }
-
-            if (!empty($missingPersonalData)) {
-                $validationErrors[] = 'Data pribadi belum lengkap: ' . implode(', ', $missingPersonalData);
-            }
-
-            // IMPROVED: Enhanced criteria validation
-            $applicationValues = ApplicationValue::where('application_id', $application->id)->get();
-            $validValues = $applicationValues->filter(function($value) {
-                return !empty($value->value) && $value->value !== '' && $value->value !== null;
-            });
-            
-            Log::info('SUBMIT VALIDATION - Criteria check', [
-                'application_id' => $application->id,
-                'total_values' => $applicationValues->count(),
-                'valid_values' => $validValues->count(),
-                'values_detail' => $applicationValues->map(function($v) {
-                    return [
-                        'id' => $v->id,
-                        'type' => $v->criteria_type,
-                        'criteria_id' => $v->criteria_id,
-                        'value' => $v->value,
-                        'score' => $v->score,
-                        'is_valid' => !empty($v->value) && $v->value !== ''
-                    ];
-                })->toArray()
-            ]);
-
-            if ($validValues->count() === 0) {
-                $validationErrors[] = 'Data kriteria AHP belum diisi. Silakan pilih kriteria terlebih dahulu dan klik "Simpan Perubahan"';
-            }
-
-            // Check documents
-            $requiredDocuments = ['ktp', 'kk', 'slip_gaji', 'surat_keterangan'];
-            $existingDocs = ApplicationDocument::where('application_id', $application->id)
-                ->pluck('document_type')
-                ->toArray();
-
-            $missingDocs = array_diff($requiredDocuments, $existingDocs);
-            if (!empty($missingDocs)) {
-                $docNames = [
-                    'ktp' => 'KTP Orang Tua',
-                    'kk' => 'Kartu Keluarga', 
-                    'slip_gaji' => 'Slip Gaji/Surat Keterangan Penghasilan',
-                    'surat_keterangan' => 'Surat Keterangan Tidak Mampu'
-                ];
-                
-                $missingDocNames = array_map(function($doc) use ($docNames) {
-                    return $docNames[$doc];
-                }, $missingDocs);
-                
-                $validationErrors[] = 'Dokumen yang belum diupload: ' . implode(', ', $missingDocNames);
-            }
-
-            if (!empty($validationErrors)) {
-                Log::warning('Application submission failed validation', [
-                    'application_id' => $application->id,
-                    'user_id' => Auth::id(),
-                    'errors' => $validationErrors,
-                    'current_criteria_count' => $validValues->count()
-                ]);
-
-                if ($request->ajax()) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Aplikasi belum dapat disubmit',
-                        'errors' => $validationErrors,
-                        'detailed_message' => implode('; ', $validationErrors)
-                    ], 422);
-                }
-                return redirect()->route('student.application.edit', $application->id)
-                    ->with('error', 'Aplikasi belum dapat disubmit: ' . implode('; ', $validationErrors));
-            }
-
-            // Submit application
-            DB::transaction(function() use ($application, $validValues) {
-                $application->update([
-                    'status' => 'submitted',
-                    'submitted_at' => now(),
-                    'updated_at' => now(),
-                ]);
-
-                Log::info('APPLICATION SUBMITTED SUCCESSFULLY', [
-                    'application_id' => $application->id,
-                    'user_id' => $application->user_id,
-                    'submitted_at' => $application->submitted_at,
-                    'criteria_values_count' => $validValues->count(),
-                    'total_score' => $validValues->sum('score')
-                ]);
-            });
-
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Aplikasi berhasil disubmit untuk validasi',
-                    'redirect_url' => route('student.dashboard')
-                ]);
-            }
-
-            return redirect()->route('student.dashboard')
-                ->with('success', 'Aplikasi berhasil disubmit untuk validasi.');
-                
-        } catch (\Exception $e) {
-            Log::error('Application submission failed', [
-                'application_id' => $application->id,
-                'user_id' => Auth::id(),
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Gagal submit aplikasi: ' . $e->getMessage()
-                ], 500);
-            }
-            
-            return redirect()->route('student.application.edit', $application->id)
-                ->with('error', 'Gagal submit aplikasi: ' . $e->getMessage());
-        }
-    }
-
-    private function calculateScore($criteriaType, $criteriaId, $value)
-    {
-        try {
-            Log::info('Calculating score', [
-                'criteria_type' => $criteriaType,
-                'criteria_id' => $criteriaId,
-                'value' => $value
-            ]);
-
-            if ($criteriaType === 'criteria') {
-                $criteria = Criteria::find($criteriaId);
-                return $criteria?->score ?? 1;
-                
-            } elseif ($criteriaType === 'subcriteria') {
-                if (is_numeric($value)) {
-                    $subCriteria = SubCriteria::find($value);
-                    return $subCriteria?->score ?? 1;
-                }
-                return 1;
-                
-            } elseif ($criteriaType === 'subsubcriteria') {
-                if (is_numeric($value)) {
-                    $subSubCriteria = SubSubCriteria::find($value);
-                    return $subSubCriteria?->score ?? 1;
-                }
-                return 1;
-            }
-            
-        } catch (\Exception $e) {
-            Log::error('Error calculating score: ' . $e->getMessage(), [
-                'criteria_type' => $criteriaType,
-                'criteria_id' => $criteriaId,
-                'value' => $value
-            ]);
-        }
-
-        return 1;
-    }
-
     private function getDocumentTypeDisplay($type)
     {
         $types = [
-            'ktp' => 'KTP Orang Tua',
-            'kk' => 'Kartu Keluarga',
+            'ktp' => 'KTP',
+            'kk' => 'KK',
             'slip_gaji' => 'Slip Gaji',
             'surat_keterangan' => 'Surat Keterangan'
         ];
-
+        
         return $types[$type] ?? $type;
-    }
-    public function saveCriteria(Request $request, Application $application)
-    {
-        if ($application->user_id !== Auth::id()) {
-            return response()->json(['success' => false, 'message' => 'Akses tidak diizinkan'], 403);
-        }
-
-        if ($application->status !== 'draft') {
-            return response()->json(['success' => false, 'message' => 'Aplikasi yang sudah disubmit tidak dapat diubah'], 422);
-        }
-
-        $request->validate([
-            'criteria_type' => 'required|string|in:subcriteria,subsubcriteria',
-            'criteria_id' => 'required|integer',
-            'value' => 'required'
-        ]);
-
-        try {
-            DB::transaction(function () use ($request, $application) {
-                $criteriaType = $request->input('criteria_type');
-                $criteriaId = $request->input('criteria_id');
-                $value = $request->input('value');
-
-                // Hapus nilai kriteria yang lama untuk criteria_id yang sama
-                ApplicationValue::where('application_id', $application->id)
-                    ->where('criteria_type', $criteriaType)
-                    ->where('criteria_id', $criteriaId)
-                    ->delete();
-
-                // Simpan nilai baru
-                $score = $this->calculateScore($criteriaType, $criteriaId, $value);
-                
-                ApplicationValue::create([
-                    'application_id' => $application->id,
-                    'criteria_type' => $criteriaType,
-                    'criteria_id' => $criteriaId,
-                    'value' => $value,
-                    'score' => $score,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-
-                Log::info('Auto-save criteria berhasil', [
-                    'application_id' => $application->id,
-                    'criteria_type' => $criteriaType,
-                    'criteria_id' => $criteriaId,
-                    'value' => $value,
-                    'score' => $score
-                ]);
-            });
-
-            // Hitung total kriteria yang sudah disimpan
-            $totalSaved = ApplicationValue::where('application_id', $application->id)->count();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Kriteria berhasil disimpan otomatis',
-                'total_criteria_saved' => $totalSaved
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Auto-save criteria gagal', [
-                'application_id' => $application->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal menyimpan kriteria: ' . $e->getMessage()
-            ], 500);
-        }
     }
 }

@@ -1,242 +1,358 @@
-{{-- resources/views/validator/validation/show.blade.php --}}
+{{-- resources/views/validator/validation/show.blade.php - CLEANED VERSION --}}
 @extends('layouts.app')
 
 @section('title', 'Validasi Aplikasi')
 @section('page-title', 'Validasi Aplikasi')
 
 @section('content')
-<div class="row">
-    <div class="col-md-8">
+
+<div class="row g-4">
+    <div class="col-lg-8">
         <!-- Application Info Card -->
-        <div class="card mb-4">
-            <div class="card-header">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-gradient-primary text-white">
                 <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-user me-2"></i>
+                    <h5 class="mb-0 fw-bold">
+                        <i class="fas fa-user-graduate me-2"></i>
                         Informasi Aplikasi
                     </h5>
-                    <div>
-                        <span class="badge bg-warning fs-6 px-3 py-2">
-                            <i class="fas fa-clock me-1"></i>Pending Validasi
-                        </span>
-                    </div>
+                    <span class="badge bg-warning text-dark fs-6 px-3 py-2 rounded-pill">
+                        <i class="fas fa-hourglass-half me-1"></i>Menunggu Validasi
+                    </span>
                 </div>
             </div>
-            <div class="card-body">
-                <div class="row">
+            <div class="card-body p-4">
+                <div class="row g-4">
                     <div class="col-md-6">
-                        <table class="table table-borderless table-sm">
-                            <tr>
-                                <th width="40%">ID Aplikasi:</th>
-                                <td><code class="bg-primary text-white p-1 rounded">{{ $application->application_number }}</code></td>
-                            </tr>
-                            <tr>
-                                <th>Nama Lengkap:</th>
-                                <td><strong>{{ $application->full_name }}</strong></td>
-                            </tr>
-                            <tr>
-                                <th>Email:</th>
-                                <td>{{ $application->user->email }}</td>
-                            </tr>
-                            <tr>
-                                <th>No. Telepon:</th>
-                                <td>{{ $application->phone ?? '-' }}</td>
-                            </tr>
-                            <tr>
-                                <th>Sekolah:</th>
-                                <td>{{ $application->school }}</td>
-                            </tr>
-                            <tr>
-                                <th>Kelas:</th>
-                                <td>{{ $application->class }}</td>
-                            </tr>
-                        </table>
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="fas fa-hashtag text-primary me-2"></i>ID Aplikasi
+                            </div>
+                            <div class="info-value">
+                                <code class="bg-primary text-white px-3 py-2 rounded-pill fw-bold">
+                                    {{ strtoupper($application->application_number) }}
+                                </code>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="fas fa-user text-success me-2"></i>Nama Lengkap
+                            </div>
+                            <div class="info-value fw-bold text-dark">
+                                {{ $application->full_name }}
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="fas fa-envelope text-info me-2"></i>Email
+                            </div>
+                            <div class="info-value text-muted">
+                                {{ $application->user->email }}
+                            </div>
+                        </div>
                     </div>
                     <div class="col-md-6">
-                        <table class="table table-borderless table-sm">
-                            <tr>
-                                <th width="40%">NISN:</th>
-                                <td>{{ $application->nisn ?? '-' }}</td>
-                            </tr>
-                            <tr>
-                                <th>Tempat Lahir:</th>
-                                <td>{{ $application->birth_place ?? '-' }}</td>
-                            </tr>
-                            <tr>
-                                <th>Tanggal Lahir:</th>
-                                <td>{{ $application->birth_date ? $application->birth_date->format('d/m/Y') : '-' }}</td>
-                            </tr>
-                            <tr>
-                                <th>Jenis Kelamin:</th>
-                                <td>{{ $application->gender ?? '-' }}</td>
-                            </tr>
-                            <tr>
-                                <th>Alamat:</th>
-                                <td>{{ $application->address ?? '-' }}</td>
-                            </tr>
-                            <tr>
-                                <th>Periode:</th>
-                                <td>
-                                    <span class="badge bg-info">{{ $application->period->name }}</span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th>Tanggal Submit:</th>
-                                <td>{{ $application->updated_at->format('d/m/Y H:i') }}</td>
-                            </tr>
-                            <tr>
-                                <th>Status Saat Ini:</th>
-                                <td>
-                                    <span class="badge bg-warning">
-                                        <i class="fas fa-clock me-1"></i>Pending
-                                    </span>
-                                </td>
-                            </tr>
-                        </table>
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="fas fa-school text-warning me-2"></i>Sekolah
+                            </div>
+                            <div class="info-value">
+                                {{ $application->school }}
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="fas fa-graduation-cap text-secondary me-2"></i>Kelas
+                            </div>
+                            <div class="info-value">
+                                <span class="badge bg-light text-dark">{{ $application->class }}</span>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="fas fa-calendar-alt text-info me-2"></i>Periode
+                            </div>
+                            <div class="info-value">
+                                <span class="badge bg-info text-white rounded-pill">
+                                    {{ $application->period->name }}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Criteria Values Card -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-list-check me-2"></i>
-                    Penilaian Kriteria
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-gradient-success text-white">
+                <h5 class="mb-0 fw-bold">
+                    <i class="fas fa-clipboard-list me-2"></i>
+                    Respon Siswa dan Penilaian
                 </h5>
             </div>
-            <div class="card-body">
+            <div class="card-body p-0">
                 @if($criterias->count() > 0)
-                    <div class="accordion" id="criteriaAccordion">
-                        @foreach($criterias as $index => $criteria)
-                        <div class="accordion-item">
-                            <h2 class="accordion-header">
-                                <button class="accordion-button {{ $index > 0 ? 'collapsed' : '' }}" 
-                                        type="button" 
-                                        data-bs-toggle="collapse" 
-                                        data-bs-target="#criteria{{ $criteria->id }}" 
-                                        aria-expanded="{{ $index == 0 ? 'true' : 'false' }}">
-                                    <strong>{{ $criteria->code }} - {{ $criteria->name }}</strong>
-                                    @if($criteria->weight)
-                                        <span class="badge bg-secondary ms-2">Bobot: {{ number_format($criteria->weight * 100, 1) }}%</span>
-                                    @endif
-                                </button>
-                            </h2>
-                            <div id="criteria{{ $criteria->id }}" 
-                                 class="accordion-collapse collapse {{ $index == 0 ? 'show' : '' }}" 
-                                 data-bs-parent="#criteriaAccordion">
-                                <div class="accordion-body">
-                                    @if($criteria->subCriterias->count() > 0)
-                                        @foreach($criteria->subCriterias as $subCriteria)
-                                        <div class="border rounded p-3 mb-3">
-                                            <h6 class="text-primary">
-                                                {{ $subCriteria->code }} - {{ $subCriteria->name }}
-                                                @if($subCriteria->weight)
-                                                    <span class="badge bg-info ms-2">Bobot: {{ number_format($subCriteria->weight * 100, 1) }}%</span>
-                                                @endif
-                                            </h6>
-                                            
-                                            @if($subCriteria->subSubCriterias->count() > 0)
-                                                @foreach($subCriteria->subSubCriterias as $subSubCriteria)
-                                                <div class="ms-3 border-start ps-3 mb-2">
-                                                    <div class="d-flex justify-content-between align-items-center">
-                                                        <span>
-                                                            <strong>{{ $subSubCriteria->code }}</strong> - {{ $subSubCriteria->name }}
-                                                            @if($subSubCriteria->weight)
-                                                                <small class="text-muted">(Bobot: {{ number_format($subSubCriteria->weight * 100, 1) }}%)</small>
-                                                            @endif
-                                                        </span>
-                                                        <div>
-                                                            @php
-                                                                $key = 'subsubcriteria_' . $subSubCriteria->id;
-                                                                $score = $applicationValues[$key]->score ?? 0;
-                                                            @endphp
-                                                            <span class="badge {{ $score > 0 ? 'bg-success' : 'bg-secondary' }} fs-6">
-                                                                Nilai: {{ $score }}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                @endforeach
-                                            @else
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <span>Nilai Sub-Kriteria</span>
-                                                    <div>
-                                                        @php
-                                                            $key = 'subcriteria_' . $subCriteria->id;
-                                                            $score = $applicationValues[$key]->score ?? 0;
-                                                        @endphp
-                                                        <span class="badge {{ $score > 0 ? 'bg-success' : 'bg-secondary' }} fs-6">
-                                                            Nilai: {{ $score }}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            @endif
-                                        </div>
-                                        @endforeach
-                                    @else
+                    <div class="accordion accordion-flush" id="criteriaAccordion">
+
+@foreach($criterias as $index => $criteria)
+<div class="accordion-item border-0">
+    <h2 class="accordion-header">
+        <button class="accordion-button {{ $index > 0 ? 'collapsed' : '' }} fw-semibold" 
+                type="button" 
+                data-bs-toggle="collapse" 
+                data-bs-target="#criteria{{ $criteria->id }}" 
+                aria-expanded="{{ $index == 0 ? 'true' : 'false' }}">
+            
+            <div class="d-flex align-items-center w-100">
+                <div class="flex-grow-1">
+                    <div class="fw-bold text-primary">
+                        {{ $criteria->code }} - {{ $criteria->name }}
+                    </div>
+                </div>
+                
+                <div class="me-3">
+                    @php
+                        $criteriaFilledCount = 0;
+                        $criteriaTotalCount = $criteria->subCriterias->count();
+                        
+                        foreach($criteria->subCriterias as $sub) {
+                            $key = 'subcriteria_' . $sub->id;
+                            if ($applicationValues->has($key)) {
+                                $data = $applicationValues->get($key);
+                                if (!$data->is_empty) {
+                                    $criteriaFilledCount++;
+                                }
+                            }
+                        }
+                    @endphp
+                    
+                    @if($criteriaFilledCount > 0)
+                        <span class="badge bg-success rounded-pill px-3">
+                            <i class="fas fa-check me-1"></i>DIISI ({{ $criteriaFilledCount }}/{{ $criteriaTotalCount }})
+                        </span>
+                    @else
+                        <span class="badge bg-danger rounded-pill px-3">
+                            <i class="fas fa-times me-1"></i>KOSONG
+                        </span>
+                    @endif
+                </div>
+            </div>
+        </button>
+    </h2>
+    <div id="criteria{{ $criteria->id }}" 
+         class="accordion-collapse collapse {{ $index == 0 ? 'show' : '' }}" 
+         data-bs-parent="#criteriaAccordion">
+        <div class="accordion-body bg-light p-4">
+            
+            @foreach($criteria->subCriterias as $subCriteria)
+                @php
+                    $key = 'subcriteria_' . $subCriteria->id;
+                    $hasResponse = false;
+                    $responseText = 'Tidak ada respon';
+                    $responseScore = 0;
+                    $createdAt = null;
+                    
+                    if ($applicationValues->has($key)) {
+                        $data = $applicationValues->get($key);
+                        if (!$data->is_empty) {
+                            $hasResponse = true;
+                            $responseText = $data->value;
+                            $responseScore = $data->score;
+                            $createdAt = $data->created_at;
+                        }
+                    }
+                @endphp
+                
+                {{-- Only show subcriteria that have responses --}}
+                @if($hasResponse)
+                <div class="card mb-3 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="status-icon bg-success rounded-circle p-2 me-3">
+                                        <i class="fas fa-check text-white"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-1 fw-bold">{{ $subCriteria->code }}</h6>
+                                        <div class="text-muted">{{ $subCriteria->name }}</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="response-content">
+                                    <div class="response-label mb-2">
+                                        <i class="fas fa-comment-alt text-primary me-2"></i>
+                                        <strong>RESPON SISWA:</strong>
+                                    </div>
+                                    <div class="response-value bg-white border rounded p-3">
                                         <div class="d-flex justify-content-between align-items-center">
-                                            <span>Nilai Kriteria</span>
                                             <div>
-                                                @php
-                                                    $key = 'criteria_' . $criteria->id;
-                                                    $score = $applicationValues[$key]->score ?? 0;
-                                                @endphp
-                                                <span class="badge {{ $score > 0 ? 'bg-success' : 'bg-secondary' }} fs-6">
-                                                    Nilai: {{ $score }}
-                                                </span>
+                                                <strong class="text-primary">{{ $subCriteria->name }}:</strong>
+                                                <span class="ms-2 fw-semibold text-success">{{ $responseText }}</span>
+                                                @if($createdAt)
+                                                    <br><small class="text-muted">
+                                                        <i class="fas fa-clock me-1"></i>
+                                                        {{ \Carbon\Carbon::parse($createdAt)->format('d/m/Y H:i') }}
+                                                    </small>
+                                                @endif
                                             </div>
+                                            <span class="badge bg-success rounded-pill fs-6">
+                                                {{ number_format($responseScore, 2) }}
+                                            </span>
                                         </div>
-                                    @endif
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ms-3">
+                                <div class="score-display text-center">
+                                    <div class="score-label text-muted small mb-1">SKOR</div>
+                                    <div class="score-badge">
+                                        <span class="badge bg-success fs-5 px-3 py-2 rounded-circle">
+                                            {{ number_format($responseScore, 2) }}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        @endforeach
+                    </div>
+                </div>
+                
+                {{-- Detail pilihan untuk sub criteria yang punya sub-sub --}}
+                @if($subCriteria->subSubCriterias->count() > 0)
+                    <div class="ms-4 mb-3">
+                        <div class="card bg-light border-0">
+                            <div class="card-header bg-transparent border-0 pb-0">
+                                <h6 class="text-muted mb-0">
+                                    <i class="fas fa-list me-2"></i>Detail Pilihan:
+                                </h6>
+                            </div>
+                            <div class="card-body pt-2">
+                                @foreach($subCriteria->subSubCriterias as $subSubCriteria)
+                                    @php
+                                        $subSubKey = 'subsubcriteria_' . $subCriteria->id . '_' . $subSubCriteria->id;
+                                        $isSelected = false;
+                                        $selectedScore = 0;
+                                        
+                                        if ($applicationValues->has($subSubKey)) {
+                                            $data = $applicationValues->get($subSubKey);
+                                            $isSelected = $data->is_selected;
+                                            $selectedScore = $data->score;
+                                        }
+                                    @endphp
+                                    
+                                    <div class="d-flex justify-content-between align-items-center py-2 {{ $isSelected ? 'border-start border-success border-3 ps-3 bg-success bg-opacity-10' : '' }}">
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-center">
+                                                @if($isSelected)
+                                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                                    <span class="fw-semibold text-success">{{ $subSubCriteria->name }}</span>
+                                                    <span class="badge bg-success ms-2 rounded-pill">DIPILIH</span>
+                                                @else
+                                                    <i class="far fa-circle text-muted me-2"></i>
+                                                    <span class="text-muted">{{ $subSubCriteria->name }}</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span class="badge {{ $isSelected ? 'bg-success' : 'bg-light text-muted' }} rounded-pill">
+                                                {{ number_format($selectedScore, 2) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                @endif
+                @endif {{-- End of hasResponse condition --}}
+            @endforeach
+        </div>
+    </div>
+</div>
+@endforeach
                     </div>
                 @else
-                    <div class="text-center py-4">
-                        <i class="fas fa-info-circle fa-2x text-muted mb-3"></i>
-                        <h6 class="text-muted">Belum Ada Kriteria</h6>
+                    <div class="text-center py-5">
+                        <i class="fas fa-info-circle fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">Belum Ada Kriteria</h5>
                         <p class="text-muted">Kriteria penilaian belum diatur oleh admin</p>
                     </div>
                 @endif
             </div>
         </div>
 
-        <!-- Documents Card -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">
+        {{-- Documents Card --}}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-gradient-info text-white">
+                <h5 class="mb-0 fw-bold">
                     <i class="fas fa-folder-open me-2"></i>
                     Dokumen Pendukung
                 </h5>
             </div>
-            <div class="card-body">
+            <div class="card-body p-4">
                 @if($documents->count() > 0)
-                    <div class="row">
+                    <div class="row g-3">
                         @foreach($documents as $document)
-                        <div class="col-md-6 mb-3">
-                            <div class="border rounded p-3 h-100">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="mb-1">{{ $document->document_type }}</h6>
-                                        <p class="text-muted small mb-2">{{ $document->document_name }}</p>
-                                        <p class="text-muted small mb-2">
-                                            <i class="fas fa-calendar me-1"></i>
-                                            {{ $document->created_at->format('d/m/Y H:i') }}
-                                        </p>
-                                        <p class="text-muted small mb-0">
-                                            <i class="fas fa-file me-1"></i>
-                                            {{ $document->file_size_formatted }}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <a href="{{ $document->url }}" 
-                                           target="_blank" 
-                                           class="btn btn-outline-primary btn-sm">
-                                            <i class="fas fa-eye me-1"></i>Lihat
-                                        </a>
+                        <div class="col-md-6">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-start">
+                                        <div class="document-icon me-3">
+                                            @php
+                                                $extension = strtolower(pathinfo($document->document_name, PATHINFO_EXTENSION));
+                                            @endphp
+                                            <div class="icon-container p-3 rounded-circle bg-light">
+                                                @switch($extension)
+                                                    @case('pdf')
+                                                        <i class="fas fa-file-pdf text-danger fa-2x"></i>
+                                                        @break
+                                                    @case('jpg')
+                                                    @case('jpeg')  
+                                                    @case('png')
+                                                        <i class="fas fa-file-image text-info fa-2x"></i>
+                                                        @break
+                                                    @case('doc')
+                                                    @case('docx')
+                                                        <i class="fas fa-file-word text-primary fa-2x"></i>
+                                                        @break
+                                                    @default
+                                                        <i class="fas fa-file text-secondary fa-2x"></i>
+                                                @endswitch
+                                            </div>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="document-type mb-2 text-primary fw-bold">
+                                                {{ str_replace('_', ' ', ucwords($document->document_type)) }}
+                                            </h6>
+                                            <div class="document-name text-dark mb-2">
+                                                {{ strlen($document->document_name) > 30 ? substr($document->document_name, 0, 30) . '...' : $document->document_name }}
+                                            </div>
+                                            <div class="document-meta mb-3">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-calendar me-1"></i>
+                                                    {{ $document->created_at->format('d/m/Y H:i') }}
+                                                </small>
+                                            </div>
+                                            
+                                            <div class="document-actions d-flex gap-2">
+                                                @if($document->exists)
+                                                    <a href="{{ route('validator.document.show', $document->id) }}" 
+                                                       target="_blank" 
+                                                       class="btn btn-outline-primary btn-sm">
+                                                        <i class="fas fa-eye me-1"></i>Lihat
+                                                    </a>
+                                                    <a href="{{ route('validator.document.download', $document->id) }}" 
+                                                       class="btn btn-outline-secondary btn-sm">
+                                                        <i class="fas fa-download me-1"></i>Download
+                                                    </a>
+                                                @else
+                                                    <span class="badge bg-danger rounded-pill">
+                                                        <i class="fas fa-exclamation-triangle me-1"></i>File tidak ditemukan
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -244,40 +360,56 @@
                         @endforeach
                     </div>
                 @else
-                    <div class="text-center py-4">
-                        <i class="fas fa-folder-open fa-2x text-muted mb-3"></i>
-                        <h6 class="text-muted">Tidak Ada Dokumen</h6>
-                        <p class="text-muted">Siswa belum mengupload dokumen pendukung</p>
+                    <div class="text-center py-5">
+                        <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">Tidak Ada Dokumen</h5>
+                        <p class="text-muted">Siswa belum mengunggah dokumen pendukung</p>
                     </div>
                 @endif
             </div>
         </div>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-lg-4">
         <!-- Validation Form -->
-        <div class="card sticky-top">
-            <div class="card-header">
-                <h6 class="mb-0">
+        <div class="card shadow sticky-top" style="top: 2rem;">
+            <div class="card-header bg-gradient-warning text-dark">
+                <h6 class="mb-0 fw-bold">
                     <i class="fas fa-gavel me-2"></i>
                     Form Validasi
                 </h6>
             </div>
-            <form action="{{ route('validator.validation.store', $application->id) }}" method="POST">
+            <form action="{{ route('validator.validation.store', $application->id) }}" method="POST" id="validationForm">
                 @csrf
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label for="status" class="form-label">Keputusan Validasi <span class="text-danger">*</span></label>
-                        <select class="form-select @error('status') is-invalid @enderror" 
+                <div class="card-body p-4">
+                    <!-- Validation Recommendation -->
+                    <div class="card border-0 mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                        <div class="card-body p-3">
+                            <h6 class="mb-2">
+                                <i class="fas fa-brain me-2"></i>Rekomendasi Sistem
+                            </h6>
+                            <div class="small">
+                                <i class="fas fa-thumbs-up me-1"></i>
+                                Aplikasi telah diisi dan siap untuk divalidasi.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="status" class="form-label fw-semibold">
+                            <i class="fas fa-balance-scale me-2 text-primary"></i>
+                            Keputusan Validasi <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select form-select-lg @error('status') is-invalid @enderror" 
                                 id="status" 
                                 name="status" 
                                 required>
                             <option value="">Pilih Keputusan...</option>
                             <option value="approved" {{ old('status') == 'approved' ? 'selected' : '' }}>
-                                <i class="fas fa-check"></i> Setujui Aplikasi
+                                ✅ Setujui Aplikasi
                             </option>
                             <option value="rejected" {{ old('status') == 'rejected' ? 'selected' : '' }}>
-                                <i class="fas fa-times"></i> Tolak Aplikasi
+                                ❌ Tolak Aplikasi
                             </option>
                         </select>
                         @error('status')
@@ -286,44 +418,28 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="notes" class="form-label">Catatan Validasi</label>
+                        <label for="notes" class="form-label fw-semibold">
+                            <i class="fas fa-sticky-note me-2 text-info"></i>
+                            Catatan Validasi
+                        </label>
                         <textarea class="form-control @error('notes') is-invalid @enderror" 
                                   id="notes" 
                                   name="notes" 
                                   rows="5" 
-                                  placeholder="Berikan catatan atau alasan keputusan validasi...">{{ old('notes') }}</textarea>
+                                  placeholder="Berikan catatan validasi yang jelas dan konstruktif...">{{ old('notes') }}</textarea>
                         @error('notes')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
-                        <div class="form-text">
-                            Catatan akan dikirim ke siswa sebagai feedback
-                        </div>
-                    </div>
-
-                    <div class="alert alert-info" id="approval-info" style="display: none;">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>Menyetujui aplikasi akan:</strong>
-                        <ul class="mb-0 mt-2">
-                            <li>Mengubah status aplikasi menjadi "Validated"</li>
-                            <li>Menghitung skor AHP secara otomatis</li>
-                            <li>Menambahkan aplikasi ke dalam ranking</li>
-                        </ul>
-                    </div>
-
-                    <div class="alert alert-warning" id="rejection-info" style="display: none;">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Menolak aplikasi akan:</strong>
-                        <ul class="mb-0 mt-2">
-                            <li>Mengubah status aplikasi menjadi "Rejected"</li>
-                            <li>Siswa dapat melihat catatan penolakan</li>
-                            <li>Aplikasi tidak akan masuk ke dalam ranking</li>
-                        </ul>
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Catatan akan dikirim ke siswa melalui email
+                        </small>
                     </div>
                 </div>
 
-                <div class="card-footer">
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">
+                <div class="card-footer bg-light p-4">
+                    <div class="d-grid gap-3">
+                        <button type="submit" class="btn btn-primary btn-lg fw-bold" id="submitBtn">
                             <i class="fas fa-save me-2"></i>
                             Simpan Validasi
                         </button>
@@ -335,38 +451,6 @@
                 </div>
             </form>
         </div>
-
-        <!-- Application Summary -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <h6 class="mb-0">
-                    <i class="fas fa-chart-bar me-2"></i>
-                    Ringkasan Aplikasi
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-4">
-                        <div class="border-end">
-                            <h5 class="text-primary mb-1">{{ $criterias->count() }}</h5>
-                            <small class="text-muted">Kriteria</small>
-                        </div>
-                    </div>
-                    <div class="col-4">
-                        <div class="border-end">
-                            <h5 class="text-info mb-1">{{ $documents->count() }}</h5>
-                            <small class="text-muted">Dokumen</small>
-                        </div>
-                    </div>
-                    <div class="col-4">
-                        <h5 class="text-success mb-1">
-                            {{ $applicationValues->where('score', '>', 0)->count() }}
-                        </h5>
-                        <small class="text-muted">Nilai > 0</small>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 @endsection
@@ -377,37 +461,117 @@
     top: 1rem;
 }
 
-.table th {
-    border: none;
-    padding: 0.25rem 0;
+.info-item {
+    margin-bottom: 1rem;
+}
+
+.info-label {
+    font-size: 0.875rem;
     font-weight: 600;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+    display: block;
 }
 
-.table td {
-    border: none;
-    padding: 0.25rem 0;
+.info-value {
+    font-size: 0.95rem;
+    color: #212529;
 }
 
-.accordion-button:focus {
-    box-shadow: none;
-    border-color: transparent;
+.response-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #495057;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.accordion-button:not(.collapsed) {
+.response-value {
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    min-height: 45px;
+    word-wrap: break-word;
+}
+
+.status-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.score-display {
+    min-width: 80px;
+}
+
+.score-badge .badge {
+    font-size: 1.1rem;
+    min-width: 50px;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.border-start.border-3 {
+    border-left-width: 3px !important;
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+}
+
+.bg-gradient-success {
+    background: linear-gradient(45deg, #28a745, #1e7e34);
+}
+
+.bg-gradient-warning {
+    background: linear-gradient(45deg, #ffc107, #e0a800);
+}
+
+.bg-gradient-info {
+    background: linear-gradient(45deg, #17a2b8, #138496);
+}
+
+.icon-container {
     background-color: #f8f9fa;
-    border-color: transparent;
 }
 
-code {
-    font-size: 0.8em;
+.document-icon {
+    flex-shrink: 0;
 }
 
-.badge {
-    font-size: 0.75em;
+.document-type {
+    font-size: 1rem;
 }
 
-.border-start {
-    border-left: 3px solid #dee2e6 !important;
+.document-name {
+    font-size: 0.9rem;
+    word-break: break-word;
+}
+
+.document-meta {
+    font-size: 0.8rem;
+}
+
+.document-actions .btn {
+    font-size: 0.8rem;
+}
+
+.progress {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    border-radius: 10px;
+    transition: width 0.6s ease;
+}
+
+.bg-success.bg-opacity-10 {
+    background-color: rgba(25, 135, 84, 0.1) !important;
 }
 </style>
 @endpush
@@ -415,47 +579,28 @@ code {
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const statusSelect = document.getElementById('status');
-    const approvalInfo = document.getElementById('approval-info');
-    const rejectionInfo = document.getElementById('rejection-info');
-
-    statusSelect.addEventListener('change', function() {
-        const value = this.value;
-        
-        // Hide all info alerts
-        approvalInfo.style.display = 'none';
-        rejectionInfo.style.display = 'none';
-        
-        // Show relevant info
-        if (value === 'approved') {
-            approvalInfo.style.display = 'block';
-        } else if (value === 'rejected') {
-            rejectionInfo.style.display = 'block';
-        }
-    });
-
-    // Form validation
-    const form = document.querySelector('form');
-    form.addEventListener('submit', function(e) {
-        const status = statusSelect.value;
-        const notes = document.getElementById('notes').value.trim();
-        
-        if (!status) {
-            e.preventDefault();
-            alert('Silakan pilih keputusan validasi terlebih dahulu!');
-            statusSelect.focus();
-            return false;
-        }
-        
-        // Confirm submission
-        const action = status === 'approved' ? 'menyetujui' : 'menolak';
-        const confirmMessage = `Apakah Anda yakin ingin ${action} aplikasi ini?`;
-        
-        if (!confirm(confirmMessage)) {
-            e.preventDefault();
-            return false;
-        }
-    });
+    const form = document.querySelector('#validationForm');
+    const submitBtn = document.querySelector('#submitBtn');
+    
+    if (form && submitBtn) {
+        form.addEventListener('submit', function(e) {
+            const status = document.getElementById('status').value;
+            if (!status) {
+                e.preventDefault();
+                alert('Silakan pilih keputusan validasi!');
+                return false;
+            }
+            
+            const action = status === 'approved' ? 'menyetujui' : 'menolak';
+            if (!confirm('Apakah Anda yakin ingin ' + action + ' aplikasi ini?')) {
+                e.preventDefault();
+                return false;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Memproses...';
+        });
+    }
 });
 </script>
 @endpush
