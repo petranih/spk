@@ -38,6 +38,12 @@ class Application extends Model
         return $this->belongsTo(User::class);
     }
 
+    // Alias untuk user relationship - untuk compatibility dengan kode yang menggunakan student
+    public function student()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     public function period()
     {
         return $this->belongsTo(Period::class);

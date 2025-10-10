@@ -1,5 +1,5 @@
 <?php
-// routes/web.php - FIXED untuk ValidationController
+// routes/web.php - FIXED tanpa Excel export
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\MultiAuthController;
@@ -19,6 +19,7 @@ use App\Http\Controllers\Validator\ValidationController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\AHPController;
 use App\Models\ApplicationDocument;
+use App\Models\CriteriaWeight;
 use Illuminate\Support\Facades\Storage;
 
 // Public routes
@@ -74,15 +75,145 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::post('/reset', [PairwiseComparisonController::class, 'resetComparisons'])->name('reset');
     });
 
-    // Application Scoring Routes
+    // Application Scoring Routes - FIXED tanpa Excel
     Route::prefix('scoring')->name('scoring.')->group(function () {
         Route::get('/', [ApplicationScoringController::class, 'index'])->name('index');
         Route::get('/period/{period}', [ApplicationScoringController::class, 'showApplications'])->name('applications');
         Route::post('/calculate-single/{application}', [ApplicationScoringController::class, 'calculateSingleScore'])->name('calculate-single');
         Route::post('/calculate-all/{period}', [ApplicationScoringController::class, 'calculateAllScores'])->name('calculate-all');
         Route::get('/detail/{application}', [ApplicationScoringController::class, 'showCalculationDetail'])->name('detail');
-        Route::get('/export/{period}/{format}', [ApplicationScoringController::class, 'export'])->name('export');
+        
+        // HANYA PDF - Route baru yang benar
+        Route::get('/export-pdf/{period}', [ApplicationScoringController::class, 'exportPdf'])->name('export-pdf');
+        
+        Route::post('/resync-weights/{application}', [ApplicationScoringController::class, 'resyncWeights'])->name('resync-weights');
     });
+
+    // Debug routes
+    if (config('app.debug')) {
+        Route::prefix('debug')->name('debug.')->group(function () {
+            Route::get('/application/{application}', [ApplicationScoringController::class, 'debugApplicationData'])
+                ->name('application-data');
+            
+            Route::get('/application-mapping/{application}', [ApplicationScoringController::class, 'debugApplicationMapping'])
+                ->name('application-mapping');
+            
+            Route::get('/application-data-enhanced/{application}', 
+                [ApplicationScoringController::class, 'debugApplicationDataEnhanced'])
+                ->name('application-data-enhanced');
+
+            Route::get('/weight-consistency', [ApplicationScoringController::class, 'debugWeightConsistency'])
+                ->name('weight-consistency');
+            
+            Route::get('/application-values/{application}', function(\App\Models\Application $application) {
+                $values = \App\Models\ApplicationValue::where('application_id', $application->id)->get();
+                $criterias = \App\Models\Criteria::with(['subCriterias.subSubCriterias'])->get();
+                
+                return response()->json([
+                    'application_id' => $application->id,
+                    'application_name' => $application->full_name,
+                    'application_data' => $application->toArray(),
+                    'application_values_count' => $values->count(),
+                    'application_values' => $values,
+                    'criterias' => $criterias
+                ]);
+            })->name('application-values');
+            
+            Route::get('/criteria-mapping', function() {
+                $criterias = \App\Models\Criteria::with(['subCriterias.subSubCriterias'])->get();
+                $sampleApp = \App\Models\Application::with(['applicationValues'])->first();
+                
+                return response()->json([
+                    'criterias_structure' => $criterias,
+                    'sample_application' => $sampleApp ? $sampleApp->toArray() : null,
+                    'sample_application_values' => $sampleApp ? $sampleApp->applicationValues : []
+                ]);
+            })->name('criteria-mapping');
+            
+            Route::get('/test-data/{application}', function(\App\Models\Application $application) {
+                $appData = $application->toArray();
+                $nonNullFields = [];
+                
+                foreach ($appData as $key => $value) {
+                    if (!is_null($value) && $value !== '' && !in_array($key, ['id', 'created_at', 'updated_at', 'deleted_at'])) {
+                        $nonNullFields[$key] = $value;
+                    }
+                }
+                
+                $appValues = \App\Models\ApplicationValue::where('application_id', $application->id)
+                    ->get()
+                    ->map(function($val) {
+                        return [
+                            'criteria_type' => $val->criteria_type,
+                            'criteria_id' => $val->criteria_id,
+                            'value' => $val->value
+                        ];
+                    });
+                
+                return response()->json([
+                    'application_id' => $application->id,
+                    'student_name' => $application->full_name,
+                    'non_null_fields' => $nonNullFields,
+                    'non_null_count' => count($nonNullFields),
+                    'application_values' => $appValues,
+                    'app_values_count' => $appValues->count()
+                ]);
+            })->name('test-data');
+
+            Route::get('/subsubcriteria-weights', function() {
+                $subSubCriterias = \App\Models\SubSubCriteria::with(['subCriteria'])
+                    ->where('is_active', true)
+                    ->get()
+                    ->map(function($ssc) {
+                        return [
+                            'id' => $ssc->id,
+                            'name' => $ssc->name,
+                            'code' => $ssc->code,
+                            'weight' => $ssc->weight,
+                            'parent_subcriteria' => $ssc->subCriteria->name,
+                            'parent_subcriteria_id' => $ssc->sub_criteria_id
+                        ];
+                    });
+
+                return response()->json([
+                    'subsubcriteria_count' => $subSubCriterias->count(),
+                    'subsubcriteria_data' => $subSubCriterias
+                ]);
+            })->name('subsubcriteria-weights');
+
+            Route::get('/weight-comparison/{application}', function(\App\Models\Application $application) {
+                $applicationValues = \App\Models\ApplicationValue::where('application_id', $application->id)
+                    ->where('criteria_type', 'subsubcriteria')
+                    ->get();
+
+                $comparison = [];
+                
+                foreach ($applicationValues as $appValue) {
+                    $subSubCriteria = \App\Models\SubSubCriteria::with('subCriteria')->find($appValue->criteria_id);
+                    
+                    if ($subSubCriteria) {
+                        $comparison[] = [
+                            'application_value' => $appValue->value,
+                            'subsubcriteria_name' => $subSubCriteria->name,
+                            'subsubcriteria_weight' => $subSubCriteria->weight,
+                            'subcriteria_name' => $subSubCriteria->subCriteria->name,
+                            'subcriteria_weight' => $subSubCriteria->subCriteria->weight,
+                            'weight_difference' => $subSubCriteria->weight - $subSubCriteria->subCriteria->weight
+                        ];
+                    }
+                }
+
+                return response()->json([
+                    'application_id' => $application->id,
+                    'application_name' => $application->full_name,
+                    'weight_comparisons' => $comparison
+                ]);
+            })->name('weight-comparison');
+        });
+    }
+    
+    Route::get('scoring/debug-mapping/{application}', [ApplicationScoringController::class, 'debugApplicationMapping'])
+        ->name('admin.debug.application-mapping');
 
     // AHP Calculation Routes
     Route::prefix('ahp')->name('ahp.')->group(function () {
@@ -98,11 +229,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Student management
     Route::resource('student', AdminStudentController::class);
     
-    // Reports
+    // Reports - FIXED tanpa Excel
     Route::resource('report', ReportController::class)->only(['index', 'show']);
     Route::post('/report/{period}/calculate', [ReportController::class, 'calculate'])->name('report.calculate');
     Route::get('/report/{period}/export-pdf', [ReportController::class, 'exportPdf'])->name('report.export.pdf');
-    Route::get('/report/{period}/export-excel', [ReportController::class, 'exportExcel'])->name('report.export.excel');
+    // Route Excel dihapus
 });
 
 // Student routes
@@ -114,7 +245,6 @@ Route::middleware(['auth', 'student'])->prefix('student')->name('student.')->gro
     Route::post('/application', [ApplicationController::class, 'store'])->name('application.store');
     Route::get('/application/{application}/edit', [ApplicationController::class, 'edit'])->name('application.edit');
     
-    // Separate routes untuk berbagai fungsi dengan middleware yang tepat
     Route::put('/application/{application}', [ApplicationController::class, 'update'])
         ->name('application.update')
         ->middleware('throttle:20,1');
@@ -127,7 +257,6 @@ Route::middleware(['auth', 'student'])->prefix('student')->name('student.')->gro
         ->name('application.submit')
         ->middleware('throttle:3,1');
     
-    // Document management routes dengan rate limiting
     Route::post('/application/{application}/upload', [ApplicationController::class, 'uploadDocument'])
         ->name('application.upload')
         ->middleware('throttle:15,1');
@@ -137,16 +266,14 @@ Route::middleware(['auth', 'student'])->prefix('student')->name('student.')->gro
         ->middleware('throttle:10,1');
 });
 
-// Validator routes - FIXED
+// Validator routes
 Route::middleware(['auth', 'validator'])->prefix('validator')->name('validator.')->group(function () {
     Route::get('/dashboard', [ValidatorController::class, 'dashboard'])->name('dashboard');
     
-    // Validation routes - FIXED method names
     Route::get('/validation', [ValidationController::class, 'index'])->name('validation.index');
     Route::get('/validation/{application}', [ValidationController::class, 'show'])->name('validation.show');
     Route::post('/validation/{application}', [ValidationController::class, 'store'])->name('validation.store');
     
-    // Document viewing routes - FIXED direct controller methods
     Route::get('/document/{document}/show', [ValidationController::class, 'showDocument'])->name('document.show');
     Route::get('/document/{document}/download', [ValidationController::class, 'downloadDocument'])->name('document.download');
 });
@@ -154,13 +281,51 @@ Route::middleware(['auth', 'validator'])->prefix('validator')->name('validator.'
 // API Routes
 Route::prefix('api')->name('api.')->group(function () {
     
-    // Admin API routes
     Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
         
-        // Consistency status check
+        Route::get('/weights/summary', function() {
+            try {
+                $criteriaWeight = CriteriaWeight::where('level', 'criteria')
+                    ->whereNull('parent_id')
+                    ->first();
+                
+                $subcriteriaWeights = CriteriaWeight::where('level', 'subcriteria')
+                    ->whereNotNull('parent_id')
+                    ->get();
+                
+                $subsubcriteriaWeights = CriteriaWeight::where('level', 'subsubcriteria')
+                    ->whereNotNull('parent_id')
+                    ->get();
+                
+                return response()->json([
+                    'criteria' => [
+                        'consistent' => $criteriaWeight ? $criteriaWeight->is_consistent : false,
+                        'cr' => $criteriaWeight ? $criteriaWeight->cr : null,
+                    ],
+                    'subcriteria' => [
+                        'total_count' => $subcriteriaWeights->count(),
+                        'consistent_count' => $subcriteriaWeights->where('is_consistent', true)->count(),
+                        'all_consistent' => $subcriteriaWeights->count() > 0 ? $subcriteriaWeights->every('is_consistent') : false,
+                    ],
+                    'subsubcriteria' => [
+                        'total_count' => $subsubcriteriaWeights->count(),
+                        'consistent_count' => $subsubcriteriaWeights->where('is_consistent', true)->count(),
+                        'all_consistent' => $subsubcriteriaWeights->count() > 0 ? $subsubcriteriaWeights->every('is_consistent') : false,
+                    ]
+                ]);
+                
+            } catch (\Exception $e) {
+                \Log::error('API weights summary error: ' . $e->getMessage());
+                
+                return response()->json([
+                    'error' => 'Failed to fetch weights summary'
+                ], 500);
+            }
+        })->name('weights.summary');
+        
         Route::get('/consistency-status/{level}/{parentId?}', function($level, $parentId = null) {
             try {
-                $weight = \App\Models\CriteriaWeight::where('level', $level)
+                $weight = CriteriaWeight::where('level', $level)
                     ->when($parentId, function($query, $parentId) {
                         return $query->where('parent_id', $parentId);
                     }, function($query) {
@@ -177,7 +342,6 @@ Route::prefix('api')->name('api.')->group(function () {
                     ]);
                 }
                 
-                // Handle values
                 $cr = is_numeric($weight->cr) ? (float) $weight->cr : null;
                 $ci = is_numeric($weight->ci) ? (float) $weight->ci : null;
                 $lambdaMax = is_numeric($weight->lambda_max) ? (float) $weight->lambda_max : null;
@@ -200,15 +364,12 @@ Route::prefix('api')->name('api.')->group(function () {
         })->name('consistency.status');
     });
     
-    // Student API routes
     Route::prefix('student')->name('student.')->middleware(['auth', 'student'])->group(function () {
         
-        // Application status check
         Route::get('/application/{application}/status', function($applicationId) {
             try {
                 $application = \App\Models\Application::findOrFail($applicationId);
                 
-                // Security check - user can only access their own application
                 if ($application->user_id !== auth()->id()) {
                     return response()->json([
                         'error' => 'Unauthorized access'

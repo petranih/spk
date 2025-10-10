@@ -79,46 +79,133 @@
     </div>
 </div>
 
-{{-- PERBAIKAN: Tampilkan periode yang tersedia untuk pendaftaran --}}
-@if(isset($availablePeriods) && $availablePeriods->count() > 0 && !$activePeriod)
+{{-- PERBAIKAN: Tampilkan SEMUA periode aktif dalam bentuk card --}}
+@if(isset($availablePeriods) && $availablePeriods->count() > 0)
 <div class="row mb-4">
     <div class="col-12">
-        <div class="card">
-            <div class="card-header">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">
                     <i class="fas fa-calendar-alt me-2"></i>
-                    Periode Tersedia
+                    Periode Pendaftaran Tersedia
                 </h5>
             </div>
             <div class="card-body">
                 <div class="row">
                     @foreach($availablePeriods as $period)
-                    <div class="col-md-4 mb-3">
-                        <div class="card border-primary">
-                            <div class="card-body text-center">
-                                <h6 class="card-title">{{ $period->name }}</h6>
-                                <p class="card-text small">
-                                    {{ $period->start_date->format('d/m/Y') }} - {{ $period->end_date->format('d/m/Y') }}<br>
-                                    <span class="badge bg-{{ $period->is_ongoing ? 'success' : 'info' }}">
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100 border-2 {{ $period->is_ongoing ? 'border-success' : 'border-info' }}">
+                            <div class="card-header {{ $period->is_ongoing ? 'bg-success' : 'bg-info' }} text-white">
+                                <h6 class="mb-0">{{ $period->name }}</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-2">
+                                    <i class="fas fa-calendar text-muted me-1"></i>
+                                    <small>{{ $period->start_date->format('d M Y') }} - {{ $period->end_date->format('d M Y') }}</small>
+                                </p>
+                                
+                                @if($period->description)
+                                <p class="text-muted small mb-2">{{ $period->description }}</p>
+                                @endif
+                                
+                                <div class="mb-2">
+                                    @if($period->is_ongoing)
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check-circle me-1"></i>Sedang Berlangsung
+                                        </span>
+                                    @elseif($period->is_expired)
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-times-circle me-1"></i>Berakhir
+                                        </span>
+                                    @else
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-clock me-1"></i>Akan Datang
+                                        </span>
+                                    @endif
+                                    
+                                    <span class="badge bg-warning text-dark">
                                         {{ $period->remaining_days }}
                                     </span>
+                                </div>
+                                
+                                @if($period->max_applications)
+                                <p class="small mb-2">
+                                    <i class="fas fa-users text-muted me-1"></i>
+                                    Kuota: {{ $period->applications_count }}/{{ $period->max_applications }}
                                 </p>
+                                @endif
+                                
                                 @php
                                     $hasApplication = $applications->where('period_id', $period->id)->first();
                                 @endphp
-                                @if($hasApplication)
-                                    <span class="badge bg-secondary">Sudah Mendaftar</span>
-                                @elseif($period->is_ongoing)
-                                    <a href="{{ route('student.application.create') }}" class="btn btn-sm btn-primary">
-                                        Daftar
-                                    </a>
-                                @else
-                                    <span class="badge bg-warning">Belum Dimulai</span>
-                                @endif
+                                
+                                <div class="d-grid mt-3">
+                                    @if($hasApplication)
+                                        @if($hasApplication->status == 'draft')
+                                            <a href="{{ route('student.application.edit', $hasApplication->id) }}" class="btn btn-warning btn-sm">
+                                                <i class="fas fa-edit me-1"></i>Lengkapi Aplikasi
+                                            </a>
+                                        @else
+                                            <button class="btn btn-secondary btn-sm" disabled>
+                                                <i class="fas fa-check me-1"></i>Sudah Mendaftar
+                                            </button>
+                                        @endif
+                                    @elseif($period->is_ongoing && $period->canAcceptApplications())
+                                        <a href="{{ route('student.application.create', ['period' => $period->id]) }}" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-plus me-1"></i>Daftar Sekarang
+                                        </a>
+                                    @elseif($period->is_ongoing)
+                                        <button class="btn btn-warning btn-sm" disabled>
+                                            <i class="fas fa-exclamation-triangle me-1"></i>Kuota Penuh
+                                        </button>
+                                    @else
+                                        <button class="btn btn-secondary btn-sm" disabled>
+                                            <i class="fas fa-clock me-1"></i>Belum Dimulai
+                                        </button>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     </div>
                     @endforeach
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
+{{-- Tampilkan periode yang akan datang jika ada --}}
+@if(isset($upcomingPeriods) && $upcomingPeriods->count() > 0)
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <h6 class="alert-heading">
+                <i class="fas fa-calendar-plus me-2"></i>Periode Akan Datang
+            </h6>
+            <hr>
+            @foreach($upcomingPeriods as $period)
+                <p class="mb-1">
+                    <strong>{{ $period->name }}</strong> - 
+                    Dimulai {{ $period->start_date->format('d M Y') }}
+                    <span class="badge bg-info">{{ $period->remaining_days }}</span>
+                </p>
+            @endforeach
+        </div>
+    </div>
+</div>
+@endif
+
+{{-- Jika tidak ada periode sama sekali --}}
+@if((!isset($availablePeriods) || $availablePeriods->count() == 0) && (!isset($upcomingPeriods) || $upcomingPeriods->count() == 0))
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-warning">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                <div>
+                    <h5 class="mb-1">Tidak Ada Periode Aktif</h5>
+                    <p class="mb-0">Saat ini tidak ada periode pendaftaran beasiswa yang aktif. Silakan tunggu pengumuman periode berikutnya.</p>
                 </div>
             </div>
         </div>

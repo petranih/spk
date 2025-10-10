@@ -8,7 +8,7 @@ use App\Models\Application;
 use App\Models\Validation;
 use App\Models\ApplicationValue;
 use App\Models\Criteria;
-use App\Models\Document;
+use App\Models\ApplicationDocument;
 use App\Models\SubCriteria;
 use App\Models\SubSubCriteria;
 use Illuminate\Support\Facades\Auth;
@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Response;
 use App\Http\Controllers\AHPController;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ValidationController extends Controller
 {
@@ -26,7 +27,22 @@ class ValidationController extends Controller
                 ->with('error', 'Aplikasi tidak dapat divalidasi');
         }
 
+        // Load raw application values
         $rawData = ApplicationValue::where('application_id', $application->id)->get();
+        
+        Log::info('Loading validation data', [
+            'application_id' => $application->id,
+            'raw_data_count' => $rawData->count(),
+            'raw_data' => $rawData->map(function($d) {
+                return [
+                    'id' => $d->id,
+                    'type' => $d->criteria_type,
+                    'criteria_id' => $d->criteria_id,
+                    'value' => $d->value,
+                    'score' => $d->score
+                ];
+            })->toArray()
+        ]);
         
         $criterias = Criteria::with(['subCriterias.subSubCriterias'])
             ->where('is_active', true)
@@ -51,165 +67,119 @@ class ValidationController extends Controller
         ]);
     }
 
-private function processData($rawData, $criterias)
-{
-    $applicationValues = collect();
-    
-    // Create mapping of criteria names to find correct placement
-    $criteriaMapping = [];
-    foreach ($criterias as $criteria) {
-        foreach ($criteria->subCriterias as $subCriteria) {
-            $criteriaMapping[$subCriteria->id] = [
-                'criteria' => $criteria,
-                'subCriteria' => $subCriteria,
-                'name_lower' => strtolower($subCriteria->name),
-                'criteria_name_lower' => strtolower($criteria->name)
-            ];
-        }
-    }
-    
-    // Smart data mapping based on content matching
-    $mappedData = [];
-    
-    foreach ($rawData as $record) {
-        $value = strtolower(trim($record->value));
-        $bestMatch = null;
-        $bestScore = 0;
+    private function processData($rawData, $criterias)
+    {
+        $applicationValues = collect();
         
-        // Try to find the best matching criteria for this data
-        foreach ($criteriaMapping as $subCriteriaId => $mapping) {
-            $score = 0;
-            
-            // Direct content matching for bantuan (both yes and no answers)
-            if (strpos($value, 'menerima bantuan') !== false || $value === 'menerima bantuan' ||
-                strpos($value, 'tidak menerima bantuan') !== false || $value === 'tidak menerima bantuan' ||
-                $value === 'tidak' || $value === 'ya') {
-                if (strpos($mapping['name_lower'], 'bantuan') !== false || 
-                    strpos($mapping['criteria_name_lower'], 'bantuan') !== false ||
-                    strpos($mapping['name_lower'], 'penerimaan') !== false) {
-                    $score = 100; // Highest priority for bantuan content
-                }
-            }
-            elseif (strpos($value, 'tidak punya hutang') !== false || strpos($value, 'punya hutang') !== false) {
-                if (strpos($mapping['name_lower'], 'hutang') !== false) {
-                    $score = 100;
-                }
-            }
-            elseif (is_numeric($value) && (strpos($value, 'orang') !== false || $record->criteria_id == $subCriteriaId)) {
-                if (strpos($mapping['name_lower'], 'tanggungan') !== false || 
-                    strpos($mapping['name_lower'], 'jumlah') !== false) {
-                    $score = 90;
-                }
-            }
-            elseif (strpos($value, 'rumah') !== false) {
-                if (strpos($mapping['name_lower'], 'rumah') !== false) {
-                    $score = 90;
-                }
-            }
-            elseif (strpos($value, 'pendapatan') !== false || strpos($value, 'gaji') !== false) {
-                if (strpos($mapping['name_lower'], 'pendapatan') !== false || 
-                    strpos($mapping['criteria_name_lower'], 'ekonomi') !== false) {
-                    $score = 90;
-                }
-            }
-            
-            // Fallback: if original criteria_id matches and no better match found
-            if ($record->criteria_id == $subCriteriaId && $score == 0) {
-                $score = 50;
-            }
-            
-            // Update best match if this score is higher
-            if ($score > $bestScore) {
-                $bestScore = $score;
-                $bestMatch = $subCriteriaId;
-            }
-        }
-        
-        // Use best match or fallback to original
-        $targetId = $bestMatch ?: $record->criteria_id;
-        $mappedData[$targetId] = $record;
-    }
-    
-    // Process each criteria and subcriteria in the correct order
-    foreach ($criterias as $criteria) {
-        foreach ($criteria->subCriterias as $subCriteria) {
-            $viewKey = "subcriteria_{$subCriteria->id}";
-            
-            // Look for mapped data for this subcriteria ID
-            $subCriteriaData = $mappedData[$subCriteria->id] ?? null;
-            
-            if ($subCriteriaData) {
-                // We have data for this subcriteria
-                $applicationValues->put($viewKey, (object)[
-                    'id' => $subCriteriaData->id,
-                    'value' => $subCriteriaData->value,
-                    'score' => (float) $subCriteriaData->score,
-                    'criteria_type' => $subCriteriaData->criteria_type,
-                    'criteria_id' => $subCriteriaData->criteria_id,
-                    'sub_criteria' => $subCriteria,
-                    'sub_sub_criteria' => null,
-                    'created_at' => $subCriteriaData->created_at,
-                    'is_empty' => false
-                ]);
+        // FIXED: Process data dengan mapping yang benar
+        foreach ($criterias as $criteria) {
+            foreach ($criteria->subCriterias as $subCriteria) {
+                $viewKey = "subcriteria_{$subCriteria->id}";
                 
-                // Process sub-sub criteria if they exist
-                if ($subCriteria->subSubCriterias->count() > 0) {
-                    foreach ($subCriteria->subSubCriterias as $subSubCriteria) {
-                        $subSubKey = "subsubcriteria_{$subCriteria->id}_{$subSubCriteria->id}";
-                        
-                        // Check if this sub-sub criteria matches the subcriteria data
-                        $isMatch = false;
-                        $recordValue = strtolower(trim($subCriteriaData->value));
-                        $subSubValue = strtolower(trim($subSubCriteria->name));
-                        
-                        // Enhanced matching logic for sub-sub criteria
-                        if ($recordValue == $subSubValue ||
-                            strpos($recordValue, $subSubValue) !== false || 
-                            strpos($subSubValue, $recordValue) !== false ||
-                            // Special cases for bantuan - handle both positive and negative responses
-                            ($recordValue == 'menerima bantuan' && ($subSubValue == 'ya' || $subSubValue == 'menerima')) ||
-                            ($recordValue == 'tidak menerima bantuan' && ($subSubValue == 'tidak' || $subSubValue == 'tidak menerima')) ||
-                            ($recordValue == 'ya' && ($subSubValue == 'menerima bantuan' || $subSubValue == 'menerima')) ||
-                            ($recordValue == 'tidak' && ($subSubValue == 'tidak menerima bantuan' || $subSubValue == 'tidak menerima' || $subSubValue == 'tidak')) ||
-                            // Special cases for hutang
-                            ($recordValue == 'tidak punya hutang' && ($subSubValue == 'tidak' || $subSubValue == 'tidak ada')) ||
-                            ($recordValue == 'punya hutang' && ($subSubValue == 'ya' || $subSubValue == 'ada')) ||
-                            // Additional matching for simple yes/no responses
-                            (($recordValue == 'ya' || $recordValue == 'yes') && ($subSubValue == 'ya' || $subSubValue == 'menerima')) ||
-                            (($recordValue == 'tidak' || $recordValue == 'no') && ($subSubValue == 'tidak' || $subSubValue == 'tidak menerima'))) {
-                            $isMatch = true;
-                        }
-                        
-                        $applicationValues->put($subSubKey, (object)[
-                            'id' => $isMatch ? $subCriteriaData->id : null,
-                            'value' => $isMatch ? $subCriteriaData->value : null,
-                            'score' => $isMatch ? (float) $subCriteriaData->score : 0,
-                            'criteria_type' => 'subsubcriteria',
-                            'criteria_id' => $subSubCriteria->id,
-                            'sub_criteria' => $subCriteria,
-                            'sub_sub_criteria' => $subSubCriteria,
-                            'created_at' => $isMatch ? $subCriteriaData->created_at : null,
-                            'is_empty' => !$isMatch,
-                            'is_selected' => $isMatch
-                        ]);
+                // FIXED: Cari data berdasarkan criteria_type dan criteria_id yang sesuai
+                $savedData = $rawData->first(function($item) use ($subCriteria) {
+                    // Data bisa tersimpan sebagai subcriteria dengan ID subcriteria
+                    if ($item->criteria_type === 'subcriteria' && $item->criteria_id == $subCriteria->id) {
+                        return true;
                     }
-                }
-            } else {
-                // No data for this subcriteria
-                $applicationValues->put($viewKey, (object)[
-                    'id' => null,
-                    'value' => null,
-                    'score' => 0,
-                    'criteria_type' => 'subcriteria',
-                    'criteria_id' => $subCriteria->id,
-                    'sub_criteria' => $subCriteria,
-                    'sub_sub_criteria' => null,
-                    'created_at' => null,
-                    'is_empty' => true
+                    
+                    // ATAU tersimpan sebagai subsubcriteria
+                    // Cek apakah ada subsubcriteria yang cocok
+                    if ($item->criteria_type === 'subsubcriteria') {
+                        foreach ($subCriteria->subSubCriterias as $subSub) {
+                            if ($item->criteria_id == $subSub->id) {
+                                return true;
+                            }
+                        }
+                    }
+                    
+                    return false;
+                });
+                
+                Log::info('Processing subcriteria', [
+                    'subcriteria_id' => $subCriteria->id,
+                    'subcriteria_name' => $subCriteria->name,
+                    'found_data' => $savedData ? [
+                        'id' => $savedData->id,
+                        'type' => $savedData->criteria_type,
+                        'criteria_id' => $savedData->criteria_id,
+                        'value' => $savedData->value,
+                        'score' => $savedData->score
+                    ] : null
                 ]);
                 
-                // Process empty sub-sub criteria
-                if ($subCriteria->subSubCriterias->count() > 0) {
+                if ($savedData) {
+                    // Ada data tersimpan
+                    $displayValue = $savedData->value;
+                    $actualScore = is_object($savedData->score) ? (float)$savedData->score : (float)$savedData->score;
+                    
+                    // Jika data tersimpan sebagai subsubcriteria, cari nama subsubnya
+                    if ($savedData->criteria_type === 'subsubcriteria') {
+                        $foundSubSub = SubSubCriteria::find($savedData->criteria_id);
+                        if ($foundSubSub) {
+                            $displayValue = $foundSubSub->name;
+                        }
+                    }
+                    
+                    $applicationValues->put($viewKey, (object)[
+                        'id' => $savedData->id,
+                        'value' => $displayValue,
+                        'score' => $actualScore,
+                        'criteria_type' => 'subcriteria',
+                        'criteria_id' => $subCriteria->id,
+                        'sub_criteria' => $subCriteria,
+                        'sub_sub_criteria' => null,
+                        'created_at' => $savedData->created_at,
+                        'is_empty' => false
+                    ]);
+                    
+                    // Process detail untuk sub-sub-criteria
+                    if ($subCriteria->subSubCriterias->count() > 0) {
+                        foreach ($subCriteria->subSubCriterias as $subSubCriteria) {
+                            $subSubKey = "subsubcriteria_{$subCriteria->id}_{$subSubCriteria->id}";
+                            
+                            // Check if this subsubcriteria is selected
+                            $isSelected = false;
+                            if ($savedData->criteria_type === 'subsubcriteria' && $savedData->criteria_id == $subSubCriteria->id) {
+                                $isSelected = true;
+                            } elseif ($savedData->criteria_type === 'subcriteria') {
+                                // Check by name match
+                                $valueClean = strtolower(trim($displayValue));
+                                $subSubNameClean = strtolower(trim($subSubCriteria->name));
+                                if ($valueClean === $subSubNameClean) {
+                                    $isSelected = true;
+                                }
+                            }
+                            
+                            $applicationValues->put($subSubKey, (object)[
+                                'id' => $isSelected ? $savedData->id : null,
+                                'value' => $isSelected ? $subSubCriteria->name : null,
+                                'score' => $isSelected ? $actualScore : 0,
+                                'criteria_type' => 'subsubcriteria',
+                                'criteria_id' => $subSubCriteria->id,
+                                'sub_criteria' => $subCriteria,
+                                'sub_sub_criteria' => $subSubCriteria,
+                                'created_at' => $isSelected ? $savedData->created_at : null,
+                                'is_empty' => !$isSelected,
+                                'is_selected' => $isSelected
+                            ]);
+                        }
+                    }
+                } else {
+                    // Tidak ada data
+                    $applicationValues->put($viewKey, (object)[
+                        'id' => null,
+                        'value' => null,
+                        'score' => 0,
+                        'criteria_type' => 'subcriteria',
+                        'criteria_id' => $subCriteria->id,
+                        'sub_criteria' => $subCriteria,
+                        'sub_sub_criteria' => null,
+                        'created_at' => null,
+                        'is_empty' => true
+                    ]);
+                    
+                    // Mark all sub-sub as unselected
                     foreach ($subCriteria->subSubCriterias as $subSubCriteria) {
                         $subSubKey = "subsubcriteria_{$subCriteria->id}_{$subSubCriteria->id}";
                         
@@ -229,22 +199,27 @@ private function processData($rawData, $criterias)
                 }
             }
         }
+
+        $filledValues = $applicationValues->filter(function($item) {
+            return !$item->is_empty && isset($item->score) && $item->score > 0;
+        });
+
+        $emptyValues = $applicationValues->filter(function($item) {
+            return $item->is_empty || !isset($item->score) || $item->score <= 0;
+        });
+        
+        Log::info('Processed validation data', [
+            'total_values' => $applicationValues->count(),
+            'filled_count' => $filledValues->count(),
+            'empty_count' => $emptyValues->count()
+        ]);
+
+        return [
+            'all' => $applicationValues,
+            'filled' => $filledValues,
+            'empty' => $emptyValues
+        ];
     }
-
-    $filledValues = $applicationValues->filter(function($item) {
-        return !$item->is_empty && $item->score > 0;
-    });
-
-    $emptyValues = $applicationValues->filter(function($item) {
-        return $item->is_empty || $item->score <= 0;
-    });
-
-    return [
-        'all' => $applicationValues,
-        'filled' => $filledValues,
-        'empty' => $emptyValues
-    ];
-}
 
     public function index()
     {
@@ -301,7 +276,7 @@ private function processData($rawData, $criterias)
     public function showDocument($id)
     {
         try {
-            $document = Document::findOrFail($id);
+            $document = ApplicationDocument::findOrFail($id);
             
             if ($document->application->status !== 'submitted') {
                 abort(403, 'Document not accessible');
@@ -328,7 +303,7 @@ private function processData($rawData, $criterias)
     public function downloadDocument($id)
     {
         try {
-            $document = Document::findOrFail($id);
+            $document = ApplicationDocument::findOrFail($id);
             
             if ($document->application->status !== 'submitted') {
                 abort(403, 'Document not accessible');

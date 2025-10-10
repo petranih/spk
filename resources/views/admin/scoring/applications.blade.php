@@ -30,10 +30,7 @@
                         $scoredCount = $applications->whereNotNull('final_score')->count();
                     @endphp
                     @if($scoredCount > 0)
-                        <a href="{{ route('admin.scoring.export', [$period->id, 'excel']) }}" class="btn btn-outline-success">
-                            <i class="fas fa-file-excel me-2"></i>Export Excel
-                        </a>
-                        <a href="{{ route('admin.scoring.export', [$period->id, 'pdf']) }}" class="btn btn-outline-danger">
+                        <a href="{{ route('admin.scoring.export-pdf', $period->id) }}" class="btn btn-outline-danger" target="_blank">
                             <i class="fas fa-file-pdf me-2"></i>Export PDF
                         </a>
                     @endif
@@ -75,7 +72,14 @@
         <div class="card border-info">
             <div class="card-body text-center">
                 <i class="fas fa-trophy fa-2x text-info mb-2"></i>
-                <h4 class="text-info">{{ $applications->whereNotNull('rank')->count() }}</h4>
+                <h4 class="text-info">
+                    @php
+                        $rankedCount = \App\Models\Ranking::where('period_id', $period->id)
+                            ->whereNotNull('rank')
+                            ->count();
+                    @endphp
+                    {{ $rankedCount }}
+                </h4>
                 <small class="text-muted">Sudah Ada Ranking</small>
             </div>
         </div>
@@ -116,7 +120,7 @@
                                         <div>
                                             <strong>{{ $application->full_name }}</strong>
                                         </div>
-                                        <small class="text-muted">{{ $application->user->email ?? 'No email' }}</small>
+                                        <small class="text-muted">{{ $application->student->email ?? 'No email' }}</small>
                                     </td>
                                     <td>
                                         <code>{{ $application->nisn }}</code>
@@ -130,8 +134,11 @@
                                             <span class="badge bg-success">
                                                 <i class="fas fa-check-circle"></i> Sudah Dihitung
                                             </span>
-                                            @if($application->calculated_at)
-                                                <br><small class="text-muted">{{ $application->calculated_at->diffForHumans() }}</small>
+                                            @php
+                                                $ranking = \App\Models\Ranking::where('application_id', $application->id)->first();
+                                            @endphp
+                                            @if($ranking && $ranking->calculated_at)
+                                                <br><small class="text-muted">{{ $ranking->calculated_at->diffForHumans() }}</small>
                                             @endif
                                         @else
                                             <span class="badge bg-warning">
@@ -149,9 +156,16 @@
                                         @endif
                                     </td>
                                     <td>
-                                        @if($application->rank)
+                                        @php
+                                            $ranking = \App\Models\Ranking::where('application_id', $application->id)->first();
+                                            
+                                            if (!$ranking && $application->final_score) {
+                                                \Log::info("Application {$application->id} has final_score but no ranking record");
+                                            }
+                                        @endphp
+                                        @if($ranking && $ranking->rank)
                                             <span class="badge bg-info fs-6">
-                                                #{{ $application->rank }}
+                                                #{{ $ranking->rank }}
                                             </span>
                                         @else
                                             <span class="text-muted">-</span>
@@ -184,25 +198,34 @@
                         </table>
                     </div>
                     
-                    @if($applications->whereNotNull('final_score')->count() > 0)
+                    @php
+                        $rankedApps = \App\Models\Ranking::where('period_id', $period->id)
+                            ->whereNotNull('rank')
+                            ->with('application.student')
+                            ->orderBy('rank')
+                            ->take(5)
+                            ->get();
+                    @endphp
+                    
+                    @if($rankedApps->count() > 0)
                         <div class="mt-4">
                             <h6>Ranking Sementara:</h6>
                             <div class="row">
-                                @php
-                                    $rankedApps = $applications->whereNotNull('final_score')->sortBy('rank')->take(5);
-                                @endphp
-                                @foreach($rankedApps as $app)
+                                @foreach($rankedApps as $rankingItem)
+                                    @php
+                                        $app = $rankingItem->application;
+                                    @endphp
                                     <div class="col-md-2 mb-2">
-                                        <div class="card border-{{ $app->rank == 1 ? 'warning' : ($app->rank <= 3 ? 'success' : 'info') }}">
+                                        <div class="card border-{{ $rankingItem->rank == 1 ? 'warning' : ($rankingItem->rank <= 3 ? 'success' : 'info') }}">
                                             <div class="card-body text-center p-2">
-                                                <div class="h5 text-{{ $app->rank == 1 ? 'warning' : ($app->rank <= 3 ? 'success' : 'info') }}">
-                                                    #{{ $app->rank }}
+                                                <div class="h5 text-{{ $rankingItem->rank == 1 ? 'warning' : ($rankingItem->rank <= 3 ? 'success' : 'info') }}">
+                                                    #{{ $rankingItem->rank }}
                                                 </div>
                                                 <div class="small">
                                                     <strong>{{ Str::limit($app->full_name, 15) }}</strong>
                                                 </div>
                                                 <div class="small text-muted">
-                                                    {{ number_format($app->final_score, 3) }}
+                                                    {{ number_format($rankingItem->total_score, 3) }}
                                                 </div>
                                             </div>
                                         </div>

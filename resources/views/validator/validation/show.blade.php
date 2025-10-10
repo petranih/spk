@@ -1,4 +1,4 @@
-{{-- resources/views/validator/validation/show.blade.php - CLEANED VERSION --}}
+{{-- resources/views/validator/validation/show.blade.php - FIXED VERSION --}}
 @extends('layouts.app')
 
 @section('title', 'Validasi Aplikasi')
@@ -164,15 +164,14 @@
                     }
                 @endphp
                 
-                {{-- Only show subcriteria that have responses --}}
-                @if($hasResponse)
-                <div class="card mb-3 border-0 shadow-sm">
+                {{-- Show all subcriteria --}}
+                <div class="card mb-3 border-0 shadow-sm {{ !$hasResponse ? 'bg-light opacity-75' : '' }}">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start">
                             <div class="flex-grow-1">
                                 <div class="d-flex align-items-center mb-3">
-                                    <div class="status-icon bg-success rounded-circle p-2 me-3">
-                                        <i class="fas fa-check text-white"></i>
+                                    <div class="status-icon {{ $hasResponse ? 'bg-success' : 'bg-danger' }} rounded-circle p-2 me-3">
+                                        <i class="fas {{ $hasResponse ? 'fa-check' : 'fa-times' }} text-white"></i>
                                     </div>
                                     <div>
                                         <h6 class="mb-1 fw-bold">{{ $subCriteria->code }}</h6>
@@ -180,14 +179,15 @@
                                     </div>
                                 </div>
                                 
+                                @if($hasResponse)
                                 <div class="response-content">
                                     <div class="response-label mb-2">
                                         <i class="fas fa-comment-alt text-primary me-2"></i>
                                         <strong>RESPON SISWA:</strong>
                                     </div>
                                     <div class="response-value bg-white border rounded p-3">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-grow-1">
                                                 <strong class="text-primary">{{ $subCriteria->name }}:</strong>
                                                 <span class="ms-2 fw-semibold text-success">{{ $responseText }}</span>
                                                 @if($createdAt)
@@ -197,29 +197,22 @@
                                                     </small>
                                                 @endif
                                             </div>
-                                            <span class="badge bg-success rounded-pill fs-6">
-                                                {{ number_format($responseScore, 2) }}
-                                            </span>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="ms-3">
-                                <div class="score-display text-center">
-                                    <div class="score-label text-muted small mb-1">SKOR</div>
-                                    <div class="score-badge">
-                                        <span class="badge bg-success fs-5 px-3 py-2 rounded-circle">
-                                            {{ number_format($responseScore, 2) }}
-                                        </span>
-                                    </div>
+                                @else
+                                <div class="alert alert-warning mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Tidak ada respon untuk kriteria ini</strong>
                                 </div>
+                                @endif
                             </div>
                         </div>
                     </div>
                 </div>
                 
                 {{-- Detail pilihan untuk sub criteria yang punya sub-sub --}}
-                @if($subCriteria->subSubCriterias->count() > 0)
+                @if($hasResponse && $subCriteria->subSubCriterias->count() > 0)
                     <div class="ms-4 mb-3">
                         <div class="card bg-light border-0">
                             <div class="card-header bg-transparent border-0 pb-0">
@@ -254,18 +247,13 @@
                                                 @endif
                                             </div>
                                         </div>
-                                        <div>
-                                            <span class="badge {{ $isSelected ? 'bg-success' : 'bg-light text-muted' }} rounded-pill">
-                                                {{ number_format($selectedScore, 2) }}
-                                            </span>
-                                        </div>
                                     </div>
                                 @endforeach
                             </div>
                         </div>
                     </div>
                 @endif
-                @endif {{-- End of hasResponse condition --}}
+                
             @endforeach
         </div>
     </div>
@@ -572,6 +560,10 @@
 
 .bg-success.bg-opacity-10 {
     background-color: rgba(25, 135, 84, 0.1) !important;
+}
+
+.opacity-75 {
+    opacity: 0.75;
 }
 </style>
 @endpush
