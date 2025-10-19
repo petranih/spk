@@ -18,14 +18,15 @@ use App\Http\Controllers\Validator\ValidatorController;
 use App\Http\Controllers\Validator\ValidationController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\AHPController;
+use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Models\ApplicationDocument;
 use App\Models\CriteriaWeight;
 use Illuminate\Support\Facades\Storage;
 
 // Public routes
 Route::get('/', function () {
-    return redirect('/login');
-});
+    return view('welcome');
+})->name('home');
 
 // Authentication routes
 Route::get('/login', [MultiAuthController::class, 'showLoginForm'])->name('login');
@@ -33,6 +34,13 @@ Route::post('/login', [MultiAuthController::class, 'login']);
 Route::get('/register', [MultiAuthController::class, 'showRegisterForm'])->name('register');
 Route::post('/register', [MultiAuthController::class, 'register']);
 Route::post('/logout', [MultiAuthController::class, 'logout'])->name('logout');
+// Forgot Password Routes
+Route::get('/password/forgot', [ForgotPasswordController::class, 'showForgotForm'])->name('password.request');
+Route::post('/password/email', [ForgotPasswordController::class, 'sendOtp'])->name('password.email');
+Route::get('/password/verify-otp', [ForgotPasswordController::class, 'showVerifyOtpForm'])->name('password.verify-otp');
+Route::post('/password/verify-otp', [ForgotPasswordController::class, 'verifyOtp'])->name('password.verify-otp.post');
+Route::get('/password/reset/{token}', [ForgotPasswordController::class, 'showResetForm'])->name('password.reset');
+Route::post('/password/reset', [ForgotPasswordController::class, 'resetPassword'])->name('password.update');
 
 // Admin routes
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
@@ -212,6 +220,326 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         });
     }
     
+    // TAMBAHKAN KE routes/web.php - Di dalam Route::middleware(['auth', 'admin'])
+
+Route::prefix('debug')->name('debug.')->group(function () {
+    
+    /**
+     * DEBUG 1: Bandingkan Data Excel vs Database
+     */
+    Route::get('/compare-holisiah', function() {
+        $holisiah = \App\Models\Application::where('full_name', 'HOLISIAH')->first();
+        
+        if (!$holisiah) {
+            return response()->json(['error' => 'HOLISIAH tidak ditemukan']);
+        }
+        
+        // Data dari Excel (row A2)
+        $excelData = [
+            'nama' => 'HOLISIAH',
+            'father_job' => 'Petani',
+            'father_income' => 'Kurang dari Rp. 500,000',
+            'mother_job' => 'Petani',
+            'mother_income' => 'Kurang dari Rp. 500,000',
+            'family_dependents' => '3–4 orang',
+            'has_debt' => 'Tidak Punya Hutang',
+            'parent_education' => 'SD',
+            'wall_type' => 'Tembok belum diplester',
+            'floor_type' => 'Semen',
+            'roof_type' => 'Seng/Asbes',
+            'house_status' => 'Kontrak/Sewa',
+            'house_area' => '< 30 m²',
+            'bedroom_count' => '2 kamar tidur',
+            'people_per_bedroom' => '3–4 orang per kamar',
+            'motorcycle' => 'Tidak punya',
+            'car' => 'Tidak punya',
+            'land' => 'Tidak punya',
+            'electronics' => 'Punya 1–2 jenis',
+            'electricity' => 'Listrik sendiri (PLN)',
+            'water' => 'Sumur Bor/Pompa',
+            'cooking_fuel' => 'LPG 3 kg',
+            'social_aid' => 'Menerima Bantuan',
+            
+            // Skor dari Excel
+            'excel_c1' => 0.149528054,
+            'excel_c2' => 0.083435564,
+            'excel_c3' => 0.078506215,
+            'excel_c4' => 0.017290915,
+            'excel_c5' => 0.030771362,
+            'excel_total' => 0.359532111,
+            'excel_rank' => 1
+        ];
+        
+        // Data dari Database
+        $dbData = [
+            'nama' => $holisiah->full_name,
+            'data_lengkap' => $holisiah->toArray(),
+            'application_values_count' => \App\Models\ApplicationValue::where('application_id', $holisiah->id)->count(),
+        ];
+        
+        // Ambil skor dari database
+        $ranking = \App\Models\Ranking::where('application_id', $holisiah->id)->first();
+        if ($ranking) {
+            $criteriaScores = is_string($ranking->criteria_scores) 
+                ? json_decode($ranking->criteria_scores, true) 
+                : $ranking->criteria_scores;
+            
+            $dbData['db_c1'] = $criteriaScores['C1'] ?? 0;
+            $dbData['db_c2'] = $criteriaScores['C2'] ?? 0;
+            $dbData['db_c3'] = $criteriaScores['C3'] ?? 0;
+            $dbData['db_c4'] = $criteriaScores['C4'] ?? 0;
+            $dbData['db_c5'] = $criteriaScores['C5'] ?? 0;
+            $dbData['db_total'] = $ranking->total_score;
+            $dbData['db_rank'] = $ranking->rank;
+        }
+        
+        // Bandingkan
+        $comparison = [
+            'C1' => ['excel' => $excelData['excel_c1'], 'db' => $dbData['db_c1'] ?? 0, 'diff' => abs($excelData['excel_c1'] - ($dbData['db_c1'] ?? 0))],
+            'C2' => ['excel' => $excelData['excel_c2'], 'db' => $dbData['db_c2'] ?? 0, 'diff' => abs($excelData['excel_c2'] - ($dbData['db_c2'] ?? 0))],
+            'C3' => ['excel' => $excelData['excel_c3'], 'db' => $dbData['db_c3'] ?? 0, 'diff' => abs($excelData['excel_c3'] - ($dbData['db_c3'] ?? 0))],
+            'C4' => ['excel' => $excelData['excel_c4'], 'db' => $dbData['db_c4'] ?? 0, 'diff' => abs($excelData['excel_c4'] - ($dbData['db_c4'] ?? 0))],
+            'C5' => ['excel' => $excelData['excel_c5'], 'db' => $dbData['db_c5'] ?? 0, 'diff' => abs($excelData['excel_c5'] - ($dbData['db_c5'] ?? 0))],
+            'TOTAL' => ['excel' => $excelData['excel_total'], 'db' => $dbData['db_total'] ?? 0, 'diff' => abs($excelData['excel_total'] - ($dbData['db_total'] ?? 0))],
+        ];
+        
+        return response()->json([
+            'excel_data' => $excelData,
+            'database_data' => $dbData,
+            'comparison' => $comparison,
+            'largest_difference' => collect($comparison)->sortByDesc('diff')->first()
+        ], 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    });
+    
+    /**
+     * DEBUG 2: Lihat Detail Perhitungan Criteria
+     */
+    Route::get('/criteria-breakdown/{application}', function(\App\Models\Application $application) {
+        $result = [
+            'student' => $application->full_name,
+            'nisn' => $application->nisn,
+            'criteria_breakdown' => []
+        ];
+        
+        $criterias = \App\Models\Criteria::where('is_active', true)
+            ->with(['subCriterias.subSubCriterias'])
+            ->orderBy('order')
+            ->get();
+        
+        foreach ($criterias as $criteria) {
+            $breakdown = [
+                'code' => $criteria->code,
+                'name' => $criteria->name,
+                'weight' => $criteria->weight,
+                'subcriteria' => []
+            ];
+            
+            foreach ($criteria->subCriterias as $sub) {
+                $subData = [
+                    'code' => $sub->code,
+                    'name' => $sub->name,
+                    'weight' => $sub->weight,
+                    'has_subsubcriteria' => $sub->subSubCriterias->count() > 0,
+                    'selected_value' => null,
+                    'selected_weight' => 0
+                ];
+                
+                if ($sub->subSubCriterias->count() > 0) {
+                    // Ada SubSubCriteria
+                    foreach ($sub->subSubCriterias as $subsub) {
+                        $appVal = \App\Models\ApplicationValue::where('application_id', $application->id)
+                            ->where('criteria_type', 'subsubcriteria')
+                            ->where('criteria_id', $subsub->id)
+                            ->first();
+                        
+                        if ($appVal) {
+                            $subData['selected_value'] = $subsub->name;
+                            $subData['selected_weight'] = $subsub->weight;
+                            break;
+                        }
+                    }
+                } else {
+                    // Direct SubCriteria
+                    $appVal = \App\Models\ApplicationValue::where('application_id', $application->id)
+                        ->where('criteria_type', 'subcriteria')
+                        ->where('criteria_id', $sub->id)
+                        ->first();
+                    
+                    if ($appVal) {
+                        $subData['selected_value'] = $appVal->value;
+                        $subData['selected_weight'] = $sub->weight;
+                    }
+                }
+                
+                $breakdown['subcriteria'][] = $subData;
+            }
+            
+            $result['criteria_breakdown'][] = $breakdown;
+        }
+        
+        return response()->json($result, 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    });
+    
+    /**
+     * DEBUG 3: Bandingkan SEMUA Bobot SubSubCriteria
+     */
+    Route::get('/all-weights', function() {
+        $result = [
+            'criteria_weights' => [],
+            'subcriteria_weights' => [],
+            'subsubcriteria_weights' => []
+        ];
+        
+        // Criteria
+        $criterias = \App\Models\Criteria::where('is_active', true)->orderBy('order')->get();
+        foreach ($criterias as $c) {
+            $result['criteria_weights'][] = [
+                'code' => $c->code,
+                'name' => $c->name,
+                'weight' => $c->weight
+            ];
+        }
+        
+        // SubCriteria
+        $subCriterias = \App\Models\SubCriteria::where('is_active', true)
+            ->with('criteria')
+            ->orderBy('criteria_id')
+            ->orderBy('order')
+            ->get();
+        
+        foreach ($subCriterias as $sc) {
+            $result['subcriteria_weights'][] = [
+                'parent' => $sc->criteria->code ?? 'N/A',
+                'code' => $sc->code,
+                'name' => $sc->name,
+                'weight' => $sc->weight,
+                'has_subsubcriteria' => $sc->subSubCriterias()->count() > 0
+            ];
+        }
+        
+        // SubSubCriteria
+        $subSubCriterias = \App\Models\SubSubCriteria::where('is_active', true)
+            ->with('subCriteria.criteria')
+            ->get();
+        
+        foreach ($subSubCriterias as $ssc) {
+            $result['subsubcriteria_weights'][] = [
+                'grandparent' => $ssc->subCriteria->criteria->code ?? 'N/A',
+                'parent' => $ssc->subCriteria->code ?? 'N/A',
+                'code' => $ssc->code,
+                'name' => $ssc->name,
+                'weight' => $ssc->weight
+            ];
+        }
+        
+        return response()->json($result, 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    });
+    
+    /**
+     * DEBUG 4: Trace Manual Calculation
+     */
+    Route::get('/manual-calc/{application}', function(\App\Models\Application $application) {
+        $result = [
+            'student' => $application->full_name,
+            'manual_calculation' => [],
+            'total' => 0
+        ];
+        
+        // Manual calculation step by step
+        $criterias = \App\Models\Criteria::where('is_active', true)
+            ->with(['subCriterias.subSubCriterias'])
+            ->orderBy('order')
+            ->get();
+        
+        foreach ($criterias as $criteria) {
+            $criteriaScore = 0;
+            $details = [];
+            
+            foreach ($criteria->subCriterias as $sub) {
+                $subScore = 0;
+                
+                if ($sub->subSubCriterias->count() > 0) {
+                    // Cari yang dipilih
+                    foreach ($sub->subSubCriterias as $subsub) {
+                        $appVal = \App\Models\ApplicationValue::where('application_id', $application->id)
+                            ->where('criteria_type', 'subsubcriteria')
+                            ->where('criteria_id', $subsub->id)
+                            ->first();
+                        
+                        if ($appVal) {
+                            $subScore = $subsub->weight;
+                            $details[] = "{$sub->name} = {$subsub->name} (weight: {$subsub->weight})";
+                            break;
+                        }
+                    }
+                } else {
+                    $appVal = \App\Models\ApplicationValue::where('application_id', $application->id)
+                        ->where('criteria_type', 'subcriteria')
+                        ->where('criteria_id', $sub->id)
+                        ->first();
+                    
+                    if ($appVal) {
+                        $subScore = $sub->weight;
+                        $details[] = "{$sub->name} = {$appVal->value} (weight: {$sub->weight})";
+                    }
+                }
+                
+                $criteriaScore += $subScore * $sub->weight;
+            }
+            
+            $contribution = $criteriaScore * $criteria->weight;
+            $result['total'] += $contribution;
+            
+            $result['manual_calculation'][] = [
+                'criteria' => $criteria->code . ' - ' . $criteria->name,
+                'criteria_weight' => $criteria->weight,
+                'subcriteria_scores' => $details,
+                'criteria_score' => $criteriaScore,
+                'contribution' => $contribution,
+                'formula' => "{$criteriaScore} × {$criteria->weight} = {$contribution}"
+            ];
+        }
+        
+        return response()->json($result, 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    });
+    
+    /**
+     * DEBUG 5: Export ke format Excel-like
+     */
+    Route::get('/export-comparison', function() {
+        $applications = \App\Models\Application::where('period_id', 4)
+            ->where('status', 'validated')
+            ->orderBy('full_name')
+            ->get();
+        
+        $data = [];
+        
+        foreach ($applications as $app) {
+            $ranking = \App\Models\Ranking::where('application_id', $app->id)->first();
+            
+            if ($ranking) {
+                $scores = is_string($ranking->criteria_scores) 
+                    ? json_decode($ranking->criteria_scores, true) 
+                    : $ranking->criteria_scores;
+                
+                $data[] = [
+                    'nama' => $app->full_name,
+                    'nisn' => $app->nisn,
+                    'skor_c1' => $scores['C1'] ?? 0,
+                    'skor_c2' => $scores['C2'] ?? 0,
+                    'skor_c3' => $scores['C3'] ?? 0,
+                    'skor_c4' => $scores['C4'] ?? 0,
+                    'skor_c5' => $scores['C5'] ?? 0,
+                    'total' => $ranking->total_score,
+                    'rank' => $ranking->rank
+                ];
+            }
+        }
+        
+        return response()->json($data, 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    });
+});
+
     Route::get('scoring/debug-mapping/{application}', [ApplicationScoringController::class, 'debugApplicationMapping'])
         ->name('admin.debug.application-mapping');
 

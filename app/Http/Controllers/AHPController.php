@@ -33,13 +33,9 @@ class AHPController extends Controller
 
         if ($n < 2) return;
 
-        // Build comparison matrix
         $matrix = $this->buildMatrix($criterias, 'criteria');
-        
-        // Calculate weights
         $result = $this->calculateWeights($matrix);
         
-        // Store weights
         foreach ($criterias as $index => $criteria) {
             CriteriaWeight::updateOrCreate([
                 'level' => 'criteria',
@@ -53,7 +49,6 @@ class AHPController extends Controller
                 'is_consistent' => $result['cr'] <= 0.1,
             ]);
 
-            // Update criteria weight
             $criteria->update(['weight' => $result['weights'][$index]]);
         }
 
@@ -70,13 +65,9 @@ class AHPController extends Controller
 
         if ($n < 2) return;
 
-        // Build comparison matrix
         $matrix = $this->buildMatrix($subCriterias, 'subcriteria', $criteriaId);
-        
-        // Calculate weights
         $result = $this->calculateWeights($matrix);
         
-        // Store weights
         foreach ($subCriterias as $index => $subCriteria) {
             CriteriaWeight::updateOrCreate([
                 'level' => 'subcriteria',
@@ -90,7 +81,6 @@ class AHPController extends Controller
                 'is_consistent' => $result['cr'] <= 0.1,
             ]);
 
-            // Update subcriteria weight
             $subCriteria->update(['weight' => $result['weights'][$index]]);
         }
 
@@ -107,13 +97,9 @@ class AHPController extends Controller
 
         if ($n < 2) return;
 
-        // Build comparison matrix
         $matrix = $this->buildMatrix($subSubCriterias, 'subsubcriteria', $subCriteriaId);
-        
-        // Calculate weights
         $result = $this->calculateWeights($matrix);
         
-        // Store weights
         foreach ($subSubCriterias as $index => $subSubCriteria) {
             CriteriaWeight::updateOrCreate([
                 'level' => 'subsubcriteria',
@@ -127,7 +113,6 @@ class AHPController extends Controller
                 'is_consistent' => $result['cr'] <= 0.1,
             ]);
 
-            // Update subsubcriteria weight
             $subSubCriteria->update(['weight' => $result['weights'][$index]]);
         }
 
@@ -160,11 +145,14 @@ class AHPController extends Controller
         return $matrix;
     }
 
+    /**
+     * FIXED: Perhitungan bobot yang benar sesuai metode AHP
+     */
     private function calculateWeights($matrix)
     {
         $n = count($matrix);
         
-        // Calculate column sums
+        // Step 1: Calculate column sums
         $columnSums = array_fill(0, $n, 0);
         for ($j = 0; $j < $n; $j++) {
             for ($i = 0; $i < $n; $i++) {
@@ -172,32 +160,52 @@ class AHPController extends Controller
             }
         }
 
-        // Normalize matrix and calculate weights
+        // Step 2: Normalize matrix
         $normalizedMatrix = array_fill(0, $n, array_fill(0, $n, 0));
-        $weights = array_fill(0, $n, 0);
-
         for ($i = 0; $i < $n; $i++) {
             for ($j = 0; $j < $n; $j++) {
                 $normalizedMatrix[$i][$j] = $matrix[$i][$j] / $columnSums[$j];
-                $weights[$i] += $normalizedMatrix[$i][$j];
             }
-            $weights[$i] /= $n;
         }
 
-        // Calculate lambda max
+        // Step 3: Calculate weights (average of each row)
+        $weights = array_fill(0, $n, 0);
+        for ($i = 0; $i < $n; $i++) {
+            $rowSum = 0;
+            for ($j = 0; $j < $n; $j++) {
+                $rowSum += $normalizedMatrix[$i][$j];
+            }
+            $weights[$i] = $rowSum / $n;
+        }
+
+        // Step 4: Calculate λmax (eigenvalue)
+        $weightedSum = array_fill(0, $n, 0);
+        for ($i = 0; $i < $n; $i++) {
+            for ($j = 0; $j < $n; $j++) {
+                $weightedSum[$i] += $matrix[$i][$j] * $weights[$j];
+            }
+        }
+
         $lambdaMax = 0;
         for ($i = 0; $i < $n; $i++) {
-            $sum = 0;
-            for ($j = 0; $j < $n; $j++) {
-                $sum += $matrix[$i][$j] * $weights[$j];
+            if ($weights[$i] != 0) {
+                $lambdaMax += $weightedSum[$i] / $weights[$i];
             }
-            $lambdaMax += $sum / $weights[$i];
         }
         $lambdaMax /= $n;
 
-        // Calculate CI and CR
+        // Step 5: Calculate CI and CR
         $ci = ($lambdaMax - $n) / ($n - 1);
         $cr = $n > 2 ? $ci / $this->ri[$n] : 0;
+
+        \Log::info("AHP Calculation:", [
+            'n' => $n,
+            'weights' => $weights,
+            'lambda_max' => $lambdaMax,
+            'ci' => $ci,
+            'cr' => $cr,
+            'is_consistent' => $cr <= 0.1
+        ]);
 
         return [
             'weights' => $weights,
@@ -258,10 +266,8 @@ class AHPController extends Controller
             $totalScore += $criteriaScore * $criteriaWeight;
         }
 
-        // Update application final score
         $application->update(['final_score' => $totalScore]);
 
-        // Store in ranking table
         Ranking::updateOrCreate([
             'period_id' => $application->period_id,
             'application_id' => $application->id,
@@ -283,7 +289,6 @@ class AHPController extends Controller
             $this->calculateApplicationScore($application);
         }
 
-        // Update rankings
         $rankings = Ranking::where('period_id', $periodId)
             ->orderBy('total_score', 'desc')
             ->get();

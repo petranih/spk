@@ -47,6 +47,229 @@
         color: white;
         border-radius: 10px;
     }
+    .comparison-table {
+        background-color: #fff;
+    }
+    
+    .comparison-table thead {
+        background-color: #2c3e50;
+    }
+    
+    .comparison-table thead th {
+        color: #ffffff;
+        font-weight: 600;
+        text-align: center;
+        vertical-align: middle;
+        padding: 12px 8px;
+        border: 1px solid #1a252f;
+    }
+    
+    .comparison-table tbody td,
+    .comparison-table tbody th {
+        text-align: center;
+        vertical-align: middle;
+        padding: 10px 8px;
+        border: 1px solid #dee2e6;
+    }
+    
+    /* Row Header - Lebih gelap */
+    .comparison-table tbody th.table-dark {
+        background-color: #34495e;
+        color: #ffffff;
+        font-weight: 600;
+    }
+    
+    .comparison-table tbody th.table-dark small {
+        color: #ecf0f1;
+        display: block;
+        margin-top: 4px;
+        font-weight: 400;
+    }
+    
+    /* Diagonal Cell - Abu-abu gelap */
+    .diagonal-cell {
+        background-color: #ecf0f1;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    
+    /* Matrix Cell - Putih dengan border */
+    .matrix-cell {
+        background-color: #ffffff;
+        color: #2c3e50;
+    }
+    
+    .matrix-cell .text-muted {
+        color: #555 !important;
+        font-weight: 500;
+    }
+    
+    /* Input Select */
+    .comparison-input {
+        width: 85px;
+        text-align: center;
+        border: 2px solid #3498db;
+        border-radius: 4px;
+        padding: 6px 4px;
+        font-weight: 500;
+        background-color: #ecf0f1;
+        color: #2c3e50;
+    }
+    
+    .comparison-input:focus {
+        background-color: #ffffff;
+        border-color: #2980b9;
+        box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+    }
+    
+    .comparison-input option {
+        background-color: #ffffff;
+        color: #2c3e50;
+        padding: 8px;
+    }
+    
+    /* Hover effect untuk tbody */
+    .comparison-table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    /* Badge */
+    .badge.bg-info {
+        background-color: #3498db !important;
+        color: white;
+    }
+    
+    /* Alert */
+    .alert.alert-info {
+        background-color: #d1ecf1;
+        border-color: #bee5eb;
+        color: #0c5460;
+    }
+    /* Perbaikan Warna Tabel Comparison - LENGKAP */
+    .comparison-table {
+        background-color: #fff;
+        border-collapse: collapse;
+    }
+    
+    /* HEADER TABEL (bagian paling atas) */
+    .comparison-table thead {
+        background-color: #2c3e50;
+    }
+    
+    .comparison-table thead tr {
+        background-color: #2c3e50;
+    }
+    
+    .comparison-table thead th {
+        background-color: #2c3e50 !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        text-align: center;
+        vertical-align: middle;
+        padding: 12px 8px !important;
+        border: 2px solid #1a252f !important;
+    }
+    
+    /* ROW HEADER (bagian kiri - row label) */
+    .comparison-table tbody th {
+        background-color: #34495e !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        text-align: center;
+        vertical-align: middle;
+        padding: 12px 8px !important;
+        border: 2px solid #2c3e50 !important;
+    }
+    
+    .comparison-table tbody th small {
+        color: #ecf0f1 !important;
+        display: block;
+        margin-top: 6px;
+        font-weight: 500;
+        font-size: 12px;
+    }
+    
+    .comparison-table tbody th.table-dark {
+        background-color: #34495e !important;
+        color: #ffffff !important;
+    }
+    
+    /* DATA CELL - Diagonal (angka 1) */
+    .diagonal-cell {
+        background-color: #bdc3c7 !important;
+        font-weight: bold !important;
+        color: #2c3e50 !important;
+        text-align: center;
+        vertical-align: middle;
+        padding: 10px 8px !important;
+        border: 1px solid #95a5a6 !important;
+    }
+    
+    /* DATA CELL - Biasa (putih) */
+    .matrix-cell {
+        background-color: #ffffff !important;
+        color: #2c3e50 !important;
+        text-align: center;
+        vertical-align: middle;
+        padding: 10px 8px !important;
+        border: 1px solid #bdc3c7 !important;
+    }
+    
+    .matrix-cell .text-muted {
+        color: #34495e !important;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    
+    /* SELECT INPUT */
+    .comparison-input {
+        width: 85px !important;
+        text-align: center;
+        border: 2px solid #3498db !important;
+        border-radius: 5px;
+        padding: 8px 6px !important;
+        font-weight: 600;
+        background-color: #ecf0f1 !important;
+        color: #2c3e50 !important;
+        font-size: 13px;
+    }
+    
+    .comparison-input:focus {
+        background-color: #ffffff !important;
+        border-color: #2980b9 !important;
+        box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25) !important;
+        outline: none;
+    }
+    
+    .comparison-input option {
+        background-color: #ffffff;
+        color: #2c3e50;
+        padding: 8px;
+    }
+    
+    /* HOVER EFFECT */
+    .comparison-table tbody tr:hover {
+        background-color: #f0f3f4;
+    }
+    
+    .comparison-table tbody tr:hover th {
+        background-color: #2c3e50 !important;
+    }
+    
+    .comparison-table tbody tr:hover td {
+        background-color: #f0f3f4;
+    }
+    
+    .comparison-table tbody tr:hover .diagonal-cell {
+        background-color: #95a5a6 !important;
+    }
+    
+    /* TABLE RESPONSIVE */
+    .table-responsive {
+        border: 2px solid #bdc3c7;
+        border-radius: 5px;
+        overflow: hidden;
+    }
 </style>
 @endpush
 

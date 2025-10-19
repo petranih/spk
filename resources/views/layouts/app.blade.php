@@ -262,12 +262,6 @@
                                 <a class="nav-link {{ request()->routeIs('admin.period*') ? 'active' : '' }}" href="{{ route('admin.period.index') }}">
                                     <i class="fas fa-calendar me-2"></i> Periode Beasiswa
                                 </a>
-                                <a class="nav-link {{ request()->routeIs('admin.student*') ? 'active' : '' }}" href="{{ route('admin.student.index') }}">
-                                    <i class="fas fa-users me-2"></i> Kelola Siswa
-                                </a>
-                                <a class="nav-link {{ request()->routeIs('admin.report*') ? 'active' : '' }}" href="{{ route('admin.report.index') }}">
-                                    <i class="fas fa-chart-bar me-2"></i> Laporan & Hasil
-                                </a>
                                 
                             @elseif(Auth::user()->isValidator())
                                 <a class="nav-link {{ request()->routeIs('validator.dashboard') ? 'active' : '' }}" href="{{ route('validator.dashboard') }}">

@@ -56,17 +56,27 @@
                             
                             <div class="mb-3">
                                 <label for="password" class="form-label">Password</label>
-                                <input type="password" class="form-control @error('password') is-invalid @enderror" 
-                                       id="password" name="password" required>
+                                <div class="input-group">
+                                    <input type="password" class="form-control @error('password') is-invalid @enderror" 
+                                           id="password" name="password" required>
+                                    <button class="btn btn-outline-secondary" type="button" id="togglePassword" style="border-color: #dee2e6;">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
                                 @error('password')
-                                    <div class="invalid-feedback">{{ $message }}</div>
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
                                 @enderror
                             </div>
                             
                             <div class="mb-3">
                                 <label for="password_confirmation" class="form-label">Konfirmasi Password</label>
-                                <input type="password" class="form-control" 
-                                       id="password_confirmation" name="password_confirmation" required>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" 
+                                           id="password_confirmation" name="password_confirmation" required>
+                                    <button class="btn btn-outline-secondary" type="button" id="togglePasswordConfirm" style="border-color: #dee2e6;">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
                             </div>
                             
                             <button type="submit" class="btn btn-primary w-100 mb-3">
@@ -86,4 +96,38 @@
         </div>
     </div>
 </div>
+
+<script>
+// Toggle Password
+document.getElementById('togglePassword').addEventListener('click', function() {
+    const passwordInput = document.getElementById('password');
+    const icon = this.querySelector('i');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        passwordInput.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+});
+
+// Toggle Password Confirmation
+document.getElementById('togglePasswordConfirm').addEventListener('click', function() {
+    const passwordConfirmInput = document.getElementById('password_confirmation');
+    const icon = this.querySelector('i');
+    
+    if (passwordConfirmInput.type === 'password') {
+        passwordConfirmInput.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        passwordConfirmInput.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+});
+</script>
 @endsection
