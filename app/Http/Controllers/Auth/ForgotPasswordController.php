@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use Illuminate\Support\Str;
 
@@ -148,32 +149,45 @@ class ForgotPasswordController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
      */
-public function resetPassword(Request $request)
-{
-    $request->validate([
-        'email' => 'required|email|exists:users,email',
-        'password' => 'required|string|min:8|confirmed',
-        'token' => 'required',
-    ]);
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+            'password' => 'required|string|min:8|confirmed',
+            'token' => 'required',
+        ], [
+            'email.required' => 'Email harus diisi.',
+            'email.email' => 'Format email tidak valid.',
+            'email.exists' => 'Email tidak ditemukan.',
+            'password.required' => 'Password baru harus diisi.',
+            'password.min' => 'Password minimal 8 karakter.',
+            'password.confirmed' => 'Konfirmasi password tidak cocok.',
+        ]);
 
-    $passwordReset = DB::table('password_resets')
-        ->where('email', $request->email)
-        ->where('token', $request->token)
-        ->first();
+        // Cek apakah token dan email valid
+        $passwordReset = DB::table('password_resets')
+            ->where('email', $request->email)
+            ->where('token', $request->token)
+            ->first();
 
-    if (!$passwordReset) {
-        return back()->withErrors(['email' => 'Token atau email tidak valid.']);
+        if (!$passwordReset) {
+            return back()->withErrors(['email' => 'Token atau email tidak valid.'])->withInput();
+        }
+
+        // Update password user
+        $user = User::where('email', $request->email)->first();
+        
+        if (!$user) {
+            return back()->withErrors(['email' => 'User tidak ditemukan.'])->withInput();
+        }
+
+        $user->password = Hash::make($request->password);
+        $user->save();
+
+        // Hapus record dari password_resets
+        DB::table('password_resets')->where('email', $request->email)->delete();
+
+        return redirect()->route('login')
+                        ->with('success', 'Password berhasil direset. Silakan login dengan password baru.');
     }
-
-    // Update password user
-    User::where('email', $request->email)->update([
-        'password' => bcrypt($request->password),
-    ]);
-
-    // Hapus record dari password_resets
-    DB::table('password_resets')->where('email', $request->email)->delete();
-
-    return redirect()->route('login')
-                    ->with('success', 'Password berhasil direset. Silakan login dengan password baru.');
-}
 }
