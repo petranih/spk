@@ -168,6 +168,37 @@
         </div>
     </div>
 </div>
+
+<style>
+/* Fix white text visibility on green cards */
+.bg-success .card-body h6,
+.bg-success .card-body p,
+.bg-success .card-body small {
+    color: #ffffff !important;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+.bg-warning .card-body h6,
+.bg-warning .card-body p,
+.bg-warning .card-body small {
+    color: #212529 !important;
+}
+
+/* Fix white text in table - SUPER IMPORTANT */
+.card-body .table-responsive table.table thead th,
+.card-body .table-responsive table.table tbody td,
+.card-body .table-responsive table.table tbody td strong,
+.card-body .table-responsive table.table tbody td span {
+    color: #000000 !important;
+}
+
+.table thead tr th,
+.table tbody tr td,
+.table tbody tr td * {
+    color: #000000 !important;
+}
+</style>
+
 @endsection
 
 @push('scripts')
@@ -180,26 +211,26 @@ function loadWeightsStatus() {
     $.get('{{ route("api.admin.weights.summary") }}', function(data) {
         let html = '<div class="row">';
         
-        // Status Kriteria
+        // Status Kriteria - FIXED: Added white text for success cards
         html += '<div class="col-md-4"><div class="card bg-' + (data.criteria.consistent ? 'success' : 'warning') + '">';
         html += '<div class="card-body text-center text-white">';
-        html += '<h6>Kriteria Utama</h6>';
-        html += '<p>' + (data.criteria.consistent ? 'Konsisten' : 'Tidak Konsisten') + '</p>';
-        html += '<small>CR: ' + (data.criteria.cr || 'N/A') + '</small>';
+        html += '<h6 class="font-weight-bold">Kriteria Utama</h6>';
+        html += '<p class="mb-1"><strong>' + (data.criteria.consistent ? 'Konsisten' : 'Tidak Konsisten') + '</strong></p>';
+        html += '<small class="d-block">CR: ' + (data.criteria.cr || 'N/A') + '</small>';
         html += '</div></div></div>';
 
-        // Status Sub Kriteria
+        // Status Sub Kriteria - FIXED: Added white text for success cards
         html += '<div class="col-md-4"><div class="card bg-' + (data.subcriteria.all_consistent ? 'success' : 'warning') + '">';
         html += '<div class="card-body text-center text-white">';
-        html += '<h6>Sub Kriteria</h6>';
-        html += '<p>' + data.subcriteria.consistent_count + '/' + data.subcriteria.total_count + ' Konsisten</p>';
+        html += '<h6 class="font-weight-bold">Sub Kriteria</h6>';
+        html += '<p class="mb-0"><strong>' + data.subcriteria.consistent_count + '/' + data.subcriteria.total_count + ' Konsisten</strong></p>';
         html += '</div></div></div>';
 
-        // Status Sub Sub Kriteria
+        // Status Sub Sub Kriteria - FIXED: Added white text for success cards
         html += '<div class="col-md-4"><div class="card bg-' + (data.subsubcriteria.all_consistent ? 'success' : 'warning') + '">';
         html += '<div class="card-body text-center text-white">';
-        html += '<h6>Sub Sub Kriteria</h6>';
-        html += '<p>' + data.subsubcriteria.consistent_count + '/' + data.subsubcriteria.total_count + ' Konsisten</p>';
+        html += '<h6 class="font-weight-bold">Sub Sub Kriteria</h6>';
+        html += '<p class="mb-0"><strong>' + data.subsubcriteria.consistent_count + '/' + data.subsubcriteria.total_count + ' Konsisten</strong></p>';
         html += '</div></div></div>';
 
         html += '</div>';

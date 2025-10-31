@@ -1,26 +1,10 @@
-{{-- resources/views/student/dashboard.blade.php - PERBAIKAN untuk Multiple Periods --}}
+{{-- resources/views/student/dashboard.blade.php - PERBAIKAN LENGKAP untuk Multiple Periods --}}
 @extends('layouts.app')
 
 @section('title', 'Dashboard Siswa')
 @section('page-title', 'Dashboard Siswa')
 
 @section('content')
-
-{{-- Debug Information (bisa dihapus setelah testing) --}}
-@if(config('app.debug'))
-<div class="row mb-2">
-    <div class="col-12">
-        <div class="alert alert-info">
-            <small>
-                <strong>Debug Info:</strong><br>
-                Active Period: {{ $activePeriod ? $activePeriod->name : 'None' }}<br>
-                Available Periods: {{ isset($availablePeriods) ? $availablePeriods->count() : 0 }}<br>
-                Current Application: {{ $currentApplication ? 'Yes (ID: '.$currentApplication->id.')' : 'None' }}
-            </small>
-        </div>
-    </div>
-</div>
-@endif
 
 <div class="row mb-4">
     <div class="col-12">
@@ -140,15 +124,16 @@
                                 @endphp
                                 
                                 <div class="d-grid mt-3">
+                                    {{-- PERBAIKAN: Tombol Lihat sekarang AKTIF --}}
                                     @if($hasApplication)
                                         @if($hasApplication->status == 'draft')
                                             <a href="{{ route('student.application.edit', $hasApplication->id) }}" class="btn btn-warning btn-sm">
                                                 <i class="fas fa-edit me-1"></i>Lengkapi Aplikasi
                                             </a>
                                         @else
-                                            <button class="btn btn-secondary btn-sm" disabled>
-                                                <i class="fas fa-check me-1"></i>Sudah Mendaftar
-                                            </button>
+                                            <a href="{{ route('student.application.show', $hasApplication->id) }}" class="btn btn-info btn-sm">
+                                                <i class="fas fa-eye me-1"></i>Lihat Aplikasi
+                                            </a>
                                         @endif
                                     @elseif($period->is_ongoing && $period->canAcceptApplications())
                                         <a href="{{ route('student.application.create', ['period' => $period->id]) }}" class="btn btn-primary btn-sm">
@@ -286,14 +271,15 @@
                                         @endif
                                     </td>
                                     <td>
+                                        {{-- PERBAIKAN: Tombol Lihat sekarang AKTIF untuk semua status kecuali draft --}}
                                         @if($app->status == 'draft')
-                                            <a href="{{ route('student.application.edit', $app->id) }}" class="btn btn-sm btn-primary">
+                                            <a href="{{ route('student.application.edit', $app->id) }}" class="btn btn-sm btn-primary" title="Lengkapi Data">
                                                 <i class="fas fa-edit"></i> Lengkapi
                                             </a>
                                         @else
-                                            <button class="btn btn-sm btn-outline-secondary" disabled>
+                                            <a href="{{ route('student.application.show', $app->id) }}" class="btn btn-sm btn-info" title="Lihat Detail">
                                                 <i class="fas fa-eye"></i> Lihat
-                                            </button>
+                                            </a>
                                         @endif
                                     </td>
                                 </tr>
@@ -364,6 +350,7 @@
                         @endif
                     </table>
                     
+                    {{-- PERBAIKAN: Tambah tombol Lihat untuk semua status --}}
                     @if($currentApplication->status == 'draft')
                         <div class="alert alert-info">
                             <small><i class="fas fa-info-circle me-1"></i>Aplikasi masih dalam tahap draft. Lengkapi semua data dan submit untuk validasi.</small>
@@ -377,13 +364,28 @@
                         <div class="alert alert-warning">
                             <small><i class="fas fa-clock me-1"></i>Aplikasi sedang menunggu validasi dari admin.</small>
                         </div>
+                        <div class="d-grid">
+                            <a href="{{ route('student.application.show', $currentApplication->id) }}" class="btn btn-info">
+                                <i class="fas fa-eye me-2"></i>Lihat Detail
+                            </a>
+                        </div>
                     @elseif($currentApplication->status == 'validated')
                         <div class="alert alert-success">
                             <small><i class="fas fa-check-circle me-1"></i>Aplikasi telah divalidasi dan siap untuk perhitungan skor.</small>
                         </div>
+                        <div class="d-grid">
+                            <a href="{{ route('student.application.show', $currentApplication->id) }}" class="btn btn-info">
+                                <i class="fas fa-eye me-2"></i>Lihat Detail
+                            </a>
+                        </div>
                     @elseif($currentApplication->status == 'rejected')
                         <div class="alert alert-danger">
                             <small><i class="fas fa-times-circle me-1"></i>Aplikasi ditolak. Lihat catatan dari validator.</small>
+                        </div>
+                        <div class="d-grid">
+                            <a href="{{ route('student.application.show', $currentApplication->id) }}" class="btn btn-info">
+                                <i class="fas fa-eye me-2"></i>Lihat Detail
+                            </a>
                         </div>
                     @endif
                     

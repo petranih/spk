@@ -3,6 +3,24 @@
 @section('title', 'Detail Perhitungan - ' . $application->full_name)
 
 @section('content')
+@push('styles')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+.table-success {
+    background-color: rgba(25, 135, 84, 0.075) !important;
+}
+.bg-dark {
+    background-color: #343a40 !important;
+}
+.bg-dark th {
+    color: white !important;
+}
+thead.bg-dark th {
+    background-color: #343a40 !important;
+    color: #ffffff !important;
+}
+</style>
+@endpush
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
@@ -17,14 +35,6 @@
                             <a href="{{ route('admin.scoring.applications', $application->period_id) }}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left"></i> Kembali
                             </a>
-                            @if(config('app.debug'))
-                                <a href="{{ route('admin.debug.application-data', $application->id) }}" target="_blank" class="btn btn-info btn-sm">
-                                    <i class="fas fa-bug"></i> Debug Data
-                                </a>
-                                <a href="{{ route('admin.debug.application-mapping', $application->id) }}" target="_blank" class="btn btn-warning btn-sm">
-                                    <i class="fas fa-search"></i> Debug Mapping
-                                </a>
-                            @endif
                         </div>
                     </div>
                 </div>
@@ -155,6 +165,14 @@
                                 }
                             }
                             $totalScore = $ranking->total_score;
+                            
+                            // Calculate sum of all contributions for percentage calculation
+                            $totalContribution = 0;
+                            foreach($criterias as $criteria) {
+                                $score = isset($criteriaScores[$criteria->code]) ? $criteriaScores[$criteria->code] : 0;
+                                $contribution = $criteria->weight * $score;
+                                $totalContribution += $contribution;
+                            }
                         @endphp
 
                         <!-- Detail Skor per Kriteria -->
@@ -167,21 +185,24 @@
                                     <div class="card-body">
                                         <div class="table-responsive">
                                             <table class="table table-bordered table-hover">
-                                                <thead class="table-dark">
+                                                <thead class="bg-dark">
                                                     <tr>
-                                                        <th>Kriteria</th>
-                                                        <th class="text-center">Bobot</th>
-                                                        <th class="text-center">Skor</th>
-                                                        <th class="text-center">Kontribusi</th>
-                                                        <th class="text-center">Persentase</th>
+                                                        <th class="text-white">Kriteria</th>
+                                                        <th class="text-center text-white">Bobot</th>
+                                                        <th class="text-center text-white">Skor</th>
+                                                        <th class="text-center text-white">Kontribusi</th>
+                                                        <th class="text-center text-white">Persentase</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
+                                                    @php $totalPercentage = 0; @endphp
                                                     @foreach($criterias as $criteria)
                                                         @php
                                                             $score = isset($criteriaScores[$criteria->code]) ? $criteriaScores[$criteria->code] : 0;
                                                             $contribution = $criteria->weight * $score;
-                                                            $percentage = $totalScore > 0 ? ($contribution / $totalScore) * 100 : 0;
+                                                            // Calculate percentage based on total contribution, not total score
+                                                            $percentage = $totalContribution > 0 ? ($contribution / $totalContribution) * 100 : 0;
+                                                            $totalPercentage += $percentage;
                                                         @endphp
                                                         <tr>
                                                             <td><strong>{{ $criteria->name }}</strong></td>
@@ -196,7 +217,7 @@
                                                     <tr>
                                                         <th colspan="3" class="text-end">TOTAL SKOR</th>
                                                         <th class="text-center">{{ number_format($totalScore, 4) }}</th>
-                                                        <th class="text-center">100%</th>
+                                                        <th class="text-center">{{ number_format($totalPercentage, 2) }}%</th>
                                                     </tr>
                                                 </tfoot>
                                             </table>
@@ -220,291 +241,6 @@
                             </div>
                         </div>
                     @endif
-
-                    <!-- Data Aplikasi Siswa (IMPROVED) -->
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="card">
-                                <div class="card-header bg-dark text-white">
-                                    <h5 class="mb-0">
-                                        <i class="fas fa-table"></i>
-                                        Data Aplikasi Siswa - Detail per Sub Kriteria
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered table-hover">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th width="20%">Kategori</th>
-                                                    <th width="25%">Sub Kriteria</th>
-                                                    <th width="25%">Nilai Siswa</th>
-                                                    <th width="15%" class="text-center">Bobot</th>
-                                                    <th width="15%" class="text-center">Status</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach($criterias as $criteria)
-                                                    @if($criteria->subCriterias->count() > 0)
-                                                        @foreach($criteria->subCriterias as $index => $subCriteria)
-                                                            @php
-                                                                $appValue = $applicationValues->get('subcriteria_' . $subCriteria->id);
-                                                                $hasValue = !empty($appValue) && !empty($appValue->value);
-                                                                
-                                                                // Dapatkan nama SubSubCriteria yang sesuai
-                                                                $displayValue = '-';
-                                                                $subSubName = '';
-                                                                
-                                                                if ($hasValue) {
-                                                                    // Cari SubSubCriteria yang cocok dengan value
-                                                                    $matchedSubSub = $subCriteria->subSubCriterias->firstWhere('id', $appValue->value);
-                                                                    
-                                                                    if ($matchedSubSub) {
-                                                                        $displayValue = $matchedSubSub->name;
-                                                                        $subSubName = $matchedSubSub->name;
-                                                                    } else {
-                                                                        // Jika tidak ada SubSubCriteria, tampilkan value langsung
-                                                                        $displayValue = $appValue->value;
-                                                                    }
-                                                                }
-                                                                
-                                                                $hasSubSub = $subCriteria->subSubCriterias->count() > 0;
-                                                                
-                                                                // Tentukan bobot yang akan ditampilkan
-                                                                $displayWeight = null;
-                                                                $isCorrectWeight = false;
-                                                                
-                                                                if ($hasValue) {
-                                                                    if (!$hasSubSub) {
-                                                                        // Direct SubCriteria
-                                                                        $displayWeight = $subCriteria->weight;
-                                                                        $isCorrectWeight = true;
-                                                                    } elseif (isset($appValue->actual_weight)) {
-                                                                        $displayWeight = $appValue->actual_weight;
-                                                                        $isCorrectWeight = true;
-                                                                    } elseif (isset($appValue->subsubcriteria_data)) {
-                                                                        $displayWeight = $appValue->subsubcriteria_data->weight;
-                                                                        $isCorrectWeight = true;
-                                                                    } else {
-                                                                        $displayWeight = $subCriteria->weight;
-                                                                        $isCorrectWeight = false;
-                                                                    }
-                                                                } else {
-                                                                    $displayWeight = $subCriteria->weight;
-                                                                }
-                                                            @endphp
-                                                            <tr class="{{ $isCorrectWeight && $hasValue ? 'table-success' : '' }}">
-                                                                @if($index === 0)
-                                                                    <td rowspan="{{ $criteria->subCriterias->count() }}" class="align-middle bg-light">
-                                                                        <strong>{{ $criteria->name }}</strong>
-                                                                        <br>
-                                                                        <small class="text-muted">Bobot: {{ number_format($criteria->weight, 4) }}</small>
-                                                                    </td>
-                                                                @endif
-                                                                <td>
-                                                                    <div class="mb-1"><strong>{{ $subCriteria->name }}</strong></div>
-                                                                    @if($subCriteria->code)
-                                                                        <small class="text-muted">{{ $subCriteria->code }}</small>
-                                                                    @endif
-                                                                </td>
-                                                                <td>
-                                                                    @if($hasValue)
-                                                                        <div class="mb-1">
-                                                                            <span class="badge bg-primary">{{ $displayValue }}</span>
-                                                                        </div>
-                                                                        @if($hasSubSub && $subSubName)
-                                                                            <small class="text-muted">
-                                                                                <i class="fas fa-sitemap"></i> {{ $subSubName }}
-                                                                            </small>
-                                                                        @endif
-                                                                    @else
-                                                                        <span class="text-muted">{{ $displayValue }}</span>
-                                                                    @endif
-                                                                </td>
-                                                                <td class="text-center">
-                                                                    <span class="badge {{ $isCorrectWeight ? 'bg-success' : 'bg-warning' }} fs-6">
-                                                                        {{ number_format($displayWeight, 4) }}
-                                                                    </span>
-                                                                </td>
-                                                                <td class="text-center">
-                                                                    @if($hasValue)
-                                                                        <span class="badge bg-success">
-                                                                            <i class="fas fa-check"></i> OK
-                                                                        </span>
-                                                                    @else
-                                                                        <span class="badge bg-danger">
-                                                                            <i class="fas fa-times"></i> Missing
-                                                                        </span>
-                                                                    @endif
-                                                                </td>
-                                                            </tr>
-                                                        @endforeach
-                                                    @endif
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    @if(config('app.debug'))
-                    <!-- Weight Debugging Information -->
-                    <div class="row mt-4">
-                        <div class="col-12">
-                            <div class="card border-info">
-                                <div class="card-header bg-info text-white">
-                                    <h6 class="mb-0">
-                                        <i class="fas fa-bug"></i>
-                                        Weight Debugging Information
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-bordered">
-                                            <thead class="table-dark">
-                                                <tr>
-                                                    <th>SubCriteria</th>
-                                                    <th>Value (ID)</th>
-                                                    <th>SubSubCriteria Name</th>
-                                                    <th>SubSub Weight</th>
-                                                    <th>SubCriteria Weight</th>
-                                                    <th>Source</th>
-                                                    <th>Status</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach($criterias as $criteria)
-                                                    @foreach($criteria->subCriterias as $subCriteria)
-                                                        @php
-                                                            $appValue = $applicationValues->get('subcriteria_' . $subCriteria->id);
-                                                            $hasValue = !empty($appValue) && !empty($appValue->value);
-                                                            
-                                                            $matchedSubSub = null;
-                                                            if ($hasValue && $subCriteria->subSubCriterias->count() > 0) {
-                                                                $matchedSubSub = $subCriteria->subSubCriterias->firstWhere('id', $appValue->value);
-                                                            }
-                                                        @endphp
-                                                        <tr>
-                                                            <td>{{ $subCriteria->name }}</td>
-                                                            <td>
-                                                                @if($hasValue)
-                                                                    <code>{{ $appValue->value }}</code>
-                                                                @else
-                                                                    <span class="text-muted">-</span>
-                                                                @endif
-                                                            </td>
-                                                            <td>
-                                                                @if($matchedSubSub)
-                                                                    {{ $matchedSubSub->name }}
-                                                                @else
-                                                                    <span class="text-muted">-</span>
-                                                                @endif
-                                                            </td>
-                                                            <td>
-                                                                @if($hasValue && isset($appValue->actual_weight))
-                                                                    <strong>{{ number_format($appValue->actual_weight, 6) }}</strong>
-                                                                @elseif($matchedSubSub)
-                                                                    {{ number_format($matchedSubSub->weight, 6) }}
-                                                                @else
-                                                                    <span class="text-muted">-</span>
-                                                                @endif
-                                                            </td>
-                                                            <td>{{ number_format($subCriteria->weight, 6) }}</td>
-                                                            <td>
-                                                                @if($hasValue)
-                                                                    <span class="badge bg-secondary">{{ $appValue->source ?? 'unknown' }}</span>
-                                                                @else
-                                                                    <span class="text-muted">-</span>
-                                                                @endif
-                                                            </td>
-                                                            <td>
-                                                                @if($hasValue && isset($appValue->actual_weight))
-                                                                    <span class="badge bg-success">Weight OK</span>
-                                                                @elseif($hasValue)
-                                                                    <span class="badge bg-warning">Fallback</span>
-                                                                @else
-                                                                    <span class="badge bg-danger">Missing</span>
-                                                                @endif
-                                                            </td>
-                                                        </tr>
-                                                    @endforeach
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Raw Application Data -->
-                    <div class="row mt-4">
-                        <div class="col-12">
-                            <div class="card border-warning">
-                                <div class="card-header bg-warning">
-                                    <h6 class="mb-0">
-                                        <i class="fas fa-database"></i>
-                                        Raw Application Data
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                                        <table class="table table-sm table-bordered">
-                                            <thead class="table-dark sticky-top">
-                                                <tr>
-                                                    <th>Type</th>
-                                                    <th>Criteria ID</th>
-                                                    <th>Value</th>
-                                                    <th>Source</th>
-                                                    <th>Weight</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @forelse($applicationValues as $key => $value)
-                                                <tr>
-                                                    <td><code>{{ $value->criteria_type }}</code></td>
-                                                    <td>{{ $value->criteria_id }}</td>
-                                                    <td>
-                                                        <span class="badge bg-light text-dark border">
-                                                            {{ Str::limit($value->value, 30) }}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <span class="badge 
-                                                            @if(str_contains($value->source, 'application_values_db')) bg-success
-                                                            @elseif(str_contains($value->source, 'from_subsubcriteria')) bg-primary
-                                                            @else bg-secondary
-                                                            @endif">
-                                                            {{ $value->source ?? 'unknown' }}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        @if(isset($value->actual_weight))
-                                                            <strong class="text-success">{{ number_format($value->actual_weight, 6) }}</strong>
-                                                        @else
-                                                            <span class="text-muted">-</span>
-                                                        @endif
-                                                    </td>
-                                                </tr>
-                                                @empty
-                                                <tr>
-                                                    <td colspan="5" class="text-center text-muted">
-                                                        <i class="fas fa-exclamation-triangle"></i>
-                                                        No application values found
-                                                    </td>
-                                                </tr>
-                                                @endforelse
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    @endif
-
                     <!-- Action Buttons -->
                     <div class="row mt-4">
                         <div class="col-12 text-center">

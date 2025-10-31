@@ -85,14 +85,14 @@
                         
                         <hr class="my-4">
                         
-                        <div class="text-center">
+                        <!-- <div class="text-center">
                             <small class="text-muted">
                                 <strong>Demo Login:</strong><br>
                                 Admin: admin@beasiswa.com / admin123<br>
                                 Validator: validator1@beasiswa.com / validator123<br>
                                 Student: alfian@student.com / student123
                             </small>
-                        </div>
+                        </div> -->
                     </div>
                 </div>
             </div>

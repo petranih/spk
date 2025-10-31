@@ -416,10 +416,31 @@
                                                         @php
                                                             $key = $subSubCriteriaA->id . '_' . $subSubCriteriaB->id;
                                                             $value = isset($comparisons[$key]) ? $comparisons[$key]->value : 1;
+                                                            
+                                                            // Clean display value - hindari floating point error
                                                             if($value < 1) {
-                                                                $displayValue = '1/' . number_format(1/$value, 0);
+                                                                // Untuk nilai reciprocal (< 1), tampilkan sebagai 1/x
+                                                                $reciprocal = 1 / $value;
+                                                                
+                                                                // Round dulu untuk menghindari 3.0000001
+                                                                $reciprocal = round($reciprocal, 2);
+                                                                
+                                                                // Jika reciprocal mendekati bilangan bulat, tampilkan sebagai bilangan bulat
+                                                                if (abs($reciprocal - round($reciprocal)) < 0.01) {
+                                                                    $displayValue = '1/' . round($reciprocal);
+                                                                } else {
+                                                                    $displayValue = '1/' . number_format($reciprocal, 1);
+                                                                }
                                                             } else {
-                                                                $displayValue = number_format($value, 3);
+                                                                // Untuk nilai >= 1, round dulu
+                                                                $roundedValue = round($value, 2);
+                                                                
+                                                                // Jika mendekati bilangan bulat, tampilkan sebagai bilangan bulat
+                                                                if (abs($roundedValue - round($roundedValue)) < 0.01) {
+                                                                    $displayValue = number_format(round($roundedValue), 0);
+                                                                } else {
+                                                                    $displayValue = number_format($roundedValue, 2);
+                                                                }
                                                             }
                                                         @endphp
                                                         <span class="text-muted">{{ $displayValue }}</span>

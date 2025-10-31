@@ -175,34 +175,7 @@
         </div>
     </div>
 
-    @if($subSubCriterias->count() > 0)
-        <div class="card mt-4">
-            <div class="card-header">
-                <h6 class="mb-0">Preview Opsi untuk Siswa</h6>
-            </div>
-            <div class="card-body">
-                <p class="text-muted">Berikut adalah opsi yang akan muncul di form aplikasi siswa:</p>
-                <div class="form-group">
-                    <label class="form-label"><strong>{{ $subcriterion->name }}</strong></label>
-                    <select class="form-select" disabled>
-                        <option value="">-- Pilih {{ $subcriterion->name }} --</option>
-                        @foreach($subSubCriterias->where('is_active', true)->sortBy('order') as $subSubCriteria)
-                            <option value="{{ $subSubCriteria->id }}">
-                                {{ $subSubCriteria->name }}
-                                @if($subSubCriteria->score > 0)
-                                    (Skor: {{ number_format($subSubCriteria->score, 3) }})
-                                @endif
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <small class="text-muted">
-                    <i class="fas fa-info-circle me-1"></i>
-                    Siswa akan memilih salah satu opsi ini, dan sistem akan otomatis menggunakan skor yang sudah ditetapkan.
-                </small>
-            </div>
-        </div>
-    @endif
+
 @else
     <div class="card">
         <div class="card-body text-center py-5">

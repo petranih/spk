@@ -42,6 +42,44 @@ Route::post('/password/verify-otp', [ForgotPasswordController::class, 'verifyOtp
 Route::get('/password/reset/{token}', [ForgotPasswordController::class, 'showResetForm'])->name('password.reset');
 Route::post('/password/reset', [ForgotPasswordController::class, 'resetPassword'])->name('password.update');
 
+Route::get('/documents/view/{document}', function(ApplicationDocument $document) {
+    // Cek apakah user sudah login
+    if (!auth()->check()) {
+        abort(403, 'Silakan login terlebih dahulu');
+    }
+    
+    $user = auth()->user();
+    $application = $document->application;
+    
+    // Authorization check
+    $authorized = false;
+    
+    if ($user->role === 'student') {
+        // Student hanya bisa lihat dokumen miliknya sendiri
+        $authorized = ($application->user_id === $user->id);
+    } elseif ($user->role === 'admin' || $user->role === 'validator') {
+        // Admin dan validator bisa lihat semua dokumen
+        $authorized = true;
+    }
+    
+    if (!$authorized) {
+        abort(403, 'Anda tidak memiliki akses ke dokumen ini');
+    }
+    
+    // Cek apakah file ada
+    $path = storage_path('app/public/' . $document->file_path);
+    
+    if (!file_exists($path)) {
+        abort(404, 'File dokumen tidak ditemukan di: ' . $document->file_path);
+    }
+    
+    // Return file dengan header yang sesuai
+    return response()->file($path, [
+        'Content-Type' => $document->file_type ?? 'application/pdf',
+        'Content-Disposition' => 'inline; filename="' . $document->original_name . '"'
+    ]);
+})->name('document.view')->middleware('auth');
+
 // Admin routes
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
@@ -571,6 +609,7 @@ Route::middleware(['auth', 'student'])->prefix('student')->name('student.')->gro
     // Application management routes
     Route::get('/application/create', [ApplicationController::class, 'create'])->name('application.create');
     Route::post('/application', [ApplicationController::class, 'store'])->name('application.store');
+    Route::get('/application/{application}', [ApplicationController::class, 'show'])->name('application.show');
     Route::get('/application/{application}/edit', [ApplicationController::class, 'edit'])->name('application.edit');
     
     Route::put('/application/{application}', [ApplicationController::class, 'update'])
